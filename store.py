@@ -31,6 +31,9 @@ create table if not exists checks(
   verdict text, score real, coverage real, mode text, knockouts integer,
   result text, findings text, created text, reviewed_by text, review_note text);
 create index if not exists checks_vendor on checks(vendor_id);
+create table if not exists sources(
+  id integer primary key autoincrement, name text, type text, kind text, url text, file_path text,
+  table_name text, created text, last_sync text, last_result text);
 create table if not exists uploads(
   id integer primary key autoincrement, kind text, filename text, rows_in integer,
   inserted integer, updated integer, skipped integer, errors text, created text);

@@ -170,7 +170,11 @@ def lookup(db, gstin: str, refresh: bool = False) -> dict:
     gs = info["gstin"]
     rec = store.registry(db, gs)
     attempts = []
-    if info["valid"] and (refresh or not rec or (rec.get("source") != "upload" and not _fresh(rec))):
+    # Uploaded, hand-entered and connected-database records are the department's own data: never auto-overwrite
+    # them on a timer, only when the officer explicitly asks to re-query.
+    src = str((rec or {}).get("source") or "")
+    trusted = src in ("upload", "manual") or src.startswith("db:")
+    if info["valid"] and (refresh or not rec or (not trusted and not _fresh(rec))):
         for name, fn in (("gsp_api", gsp_lookup), ("web_search", web_lookup)):
             try:
                 found = fn(gs)

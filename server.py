@@ -14,9 +14,13 @@ import io
 import json
 import os
 import re
+import sqlite3
 import sys
+import tempfile
 import threading
+import time
 import traceback
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -26,6 +30,9 @@ sys.path.insert(0, str(HERE))
 
 import engine  # noqa: E402
 import store  # noqa: E402
+import verify  # noqa: E402
+
+MAX_BODY = 80 * 1024 * 1024
 
 DB = store.connect(os.environ.get("DASHBOARD_DB") or store.DB_PATH)
 PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "")
@@ -134,47 +141,263 @@ def add_vendor(body: dict) -> dict:
     return {"result": res, "id": row["id"] if row else None}
 
 
-def do_upload(kind: str, body, content_type: str) -> dict:
-    if kind not in ("vendors", "registry"):
-        raise ValueError("kind must be 'vendors' or 'registry'")
-    filename = "upload"
+def body_rows(body, content_type: str) -> tuple[str, list]:
     if isinstance(body, dict):
-        filename = body.get("filename") or filename
+        filename = body.get("filename") or "upload"
         rows = body.get("rows")
         if rows is None:
             rows = store.parse_text(body.get("content") or "", filename)
-    else:  # raw CSV / JSON text body (curl --data-binary @file.csv)
-        rows = store.parse_text(body, "x.json" if "json" in content_type else "x.csv")
+        return filename, rows
+    # raw CSV / JSON text body (curl --data-binary @file.csv)
+    return "upload", store.parse_text(body, "x.json" if "json" in content_type else "x.csv")
+
+
+def public(report: dict) -> dict:
+    return {k: v for k, v in report.items() if not k.startswith("_")}
+
+
+def import_rows(kind: str, rows: list, filename: str, source: str | None = None, dry_run: bool = False) -> dict:
+    """Verify every row, then (unless dry_run) import all rows without errors."""
+    if kind not in ("vendors", "registry"):
+        raise ValueError("kind must be 'vendors' or 'registry'")
+    report = verify.verify_rows(DB, kind, rows)
+    if dry_run:
+        return public(report)
     ins = upd = skip = 0
-    errors = []
-    for i, row in enumerate(rows, 1):
-        try:
-            rec = store.normalise_vendor(row) if kind == "vendors" else store.normalise_registry(row)
-            if not rec:
-                skip += 1
-                errors.append(f"row {i}: no vendor name / GSTIN")
-                continue
-            if kind == "registry":
-                info = engine.decode(rec["gstin"])
-                if not info["valid"]:
-                    skip += 1
-                    errors.append(f"row {i}: {rec['gstin']} is not a valid GSTIN ({'; '.join(info['problems'])})")
-                    continue
-                rec.setdefault("pan", info.get("pan"))
-                rec.setdefault("state", info.get("state"))
-                r = store.upsert_registry(DB, rec, "upload")
-            else:
-                r = store.upsert_vendor(DB, rec, f"upload:{filename}")
-            ins += r == "inserted"
-            upd += r == "updated"
-        except Exception as e:  # noqa: BLE001
+    errors = [f"row {d['row']}: " + "; ".join(i["text"] for i in d["issues"] if i["level"] == "error")
+              for d in report["details"] if d["status"] == "error"]
+    for rec, status in report["_records"]:
+        if status == "error" or rec is None:
             skip += 1
-            errors.append(f"row {i}: {e}")
+            continue
+        if kind == "registry":
+            info = engine.decode(rec["gstin"])
+            rec.setdefault("pan", info.get("pan"))
+            rec.setdefault("state", info.get("state"))
+            r = store.upsert_registry(DB, rec, source or "upload")
+        else:
+            r = store.upsert_vendor(DB, rec, source or f"upload:{filename}")
+        ins += r == "inserted"
+        upd += r == "updated"
     DB.execute("insert into uploads(kind,filename,rows_in,inserted,updated,skipped,errors,created) values(?,?,?,?,?,?,?,?)",
                (kind, filename, len(rows), ins, upd, skip, json.dumps(errors[:50]), store.now()))
     DB.commit()
     return {"kind": kind, "filename": filename, "rows": len(rows), "inserted": ins, "updated": upd,
-            "skipped": skip, "errors": errors[:20]}
+            "skipped": skip, "errors": errors[:20], "counts": report["counts"]}
+
+
+def do_upload(kind: str, body, content_type: str, dry_run: bool = False) -> dict:
+    filename, rows = body_rows(body, content_type)
+    return import_rows(kind, rows, filename, dry_run=dry_run)
+
+
+def add_registry(body: dict, dry_run: bool) -> dict:
+    """Manual entry of one GST registry record (verified like any upload)."""
+    res = import_rows("registry", [body], "manual entry", source="manual", dry_run=dry_run)
+    if not dry_run and res["skipped"]:
+        raise ValueError("; ".join(res["errors"]) or "record failed verification")
+    return res
+
+
+# --------------------------------------------------------------------------- connected databases
+SRC_DIR = HERE / "sources"
+BACKUP_DIR = HERE / "backups"
+MAX_FETCH = 25 * 1024 * 1024
+
+
+def _source(sid: int) -> dict:
+    r = DB.execute("select * from sources where id=?", (sid,)).fetchone()
+    if not r:
+        raise KeyError("database not found")
+    d = dict(r)
+    d["last_result"] = json.loads(d["last_result"] or "null")
+    return d
+
+
+def _qident(name: str) -> str:
+    return '"' + name.replace('"', '""') + '"'
+
+
+def inspect_sqlite(path: str) -> list[dict]:
+    con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    try:
+        out = []
+        for (name,) in con.execute("select name from sqlite_master where type in ('table','view')"
+                                   " and name not like 'sqlite_%' order by name"):
+            cols = [c[1] for c in con.execute(f"pragma table_info({_qident(name)})")]
+            n = con.execute(f"select count(*) from {_qident(name)}").fetchone()[0]
+            keys = {store._key(c) for c in cols}
+            score = {k: sum(1 for names in a.values() if keys & set(names))
+                     for k, a in (("vendors", store.VENDOR_ALIASES), ("registry", store.REGISTRY_ALIASES))}
+            # registry tables have status / registration columns; vendor tables have claims / tender columns
+            guess = "registry" if score["registry"] >= 3 and not keys & {"tender_id", "claimed_headcount", "domain",
+                                                                       "website", "bid_value", "tender_value_inr"} \
+                else "vendors"
+            out.append({"table": name, "columns": cols, "rows": n, "guess": guess})
+        return out
+    finally:
+        con.close()
+
+
+def read_sqlite(path: str, table: str) -> list[dict]:
+    if table not in {t["table"] for t in inspect_sqlite(path)}:
+        raise ValueError(f"table '{table}' not found")
+    con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    con.row_factory = sqlite3.Row
+    try:
+        return [dict(r) for r in con.execute(f"select * from {_qident(table)} limit 200000")]
+    finally:
+        con.close()
+
+
+def fetch_url(url: str) -> list[dict]:
+    if not re.match(r"^https?://", url, re.I):
+        raise ValueError("link must start with http:// or https://")
+    req = urllib.request.Request(url, headers={"accept": "application/json, text/csv, */*",
+                                               "user-agent": "gem-vendor-dashboard"})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        data = r.read(MAX_FETCH + 1)
+        ctype = r.headers.get("content-type") or ""
+    if len(data) > MAX_FETCH:
+        raise ValueError("file at link is larger than 25 MB")
+    text = data.decode("utf-8-sig", errors="replace")
+    name = "x.json" if "json" in ctype or urlparse(url).path.lower().endswith(".json") else "x.csv"
+    return store.parse_text(text, name)
+
+
+def list_sources() -> list[dict]:
+    out = []
+    for r in DB.execute("select * from sources order by id desc"):
+        d = dict(r)
+        d["last_result"] = json.loads(d["last_result"] or "null")
+        if d["type"] == "sqlite":
+            try:
+                d["tables"] = inspect_sqlite(d["file_path"])
+            except Exception as e:  # noqa: BLE001
+                d["tables"], d["error"] = [], f"cannot open file: {e}"
+        d.pop("file_path", None)
+        out.append(d)
+    return out
+
+
+def create_source(body: dict) -> dict:
+    name = (body.get("name") or "").strip()
+    typ = body.get("type")
+    kind = body.get("kind") or "vendors"
+    if not name:
+        raise ValueError("give the database a name")
+    if kind not in ("vendors", "registry"):
+        raise ValueError("kind must be vendors or registry")
+    path = url = table = None
+    if typ == "sqlite":
+        raw = base64.b64decode(body.get("file_b64") or "")
+        if not raw.startswith(b"SQLite format 3\x00"):
+            raise ValueError("that file is not a SQLite database (.db / .sqlite)")
+        SRC_DIR.mkdir(exist_ok=True)
+        safe = re.sub(r"[^A-Za-z0-9._-]", "_", body.get("filename") or "database.db")[-80:]
+        path = str(SRC_DIR / f"{int(time.time() * 1000)}_{safe}")
+        Path(path).write_bytes(raw)
+        try:
+            tables = inspect_sqlite(path)
+        except sqlite3.DatabaseError as e:
+            Path(path).unlink(missing_ok=True)
+            raise ValueError(f"database could not be read: {e}") from e
+        if not tables:
+            Path(path).unlink(missing_ok=True)
+            raise ValueError("database has no tables")
+        if len(tables) == 1:
+            table, kind = tables[0]["table"], tables[0]["guess"]
+    elif typ == "url":
+        url = (body.get("url") or "").strip()
+        if not re.match(r"^https?://", url, re.I):
+            raise ValueError("link must start with http:// or https://")
+    else:
+        raise ValueError("type must be 'sqlite' or 'url'")
+    cur = DB.execute("insert into sources(name,type,kind,url,file_path,table_name,created) values(?,?,?,?,?,?,?)",
+                     (name, typ, kind, url, path, table, store.now()))
+    DB.commit()
+    return {"id": cur.lastrowid}
+
+
+def update_source(sid: int, body: dict) -> dict:
+    s = _source(sid)
+    kind = body.get("kind") or s["kind"]
+    if kind not in ("vendors", "registry"):
+        raise ValueError("kind must be vendors or registry")
+    table = body.get("table", s["table_name"])
+    if s["type"] == "sqlite" and table and table not in {t["table"] for t in inspect_sqlite(s["file_path"])}:
+        raise ValueError(f"table '{table}' not found")
+    DB.execute("update sources set kind=?, table_name=?, name=? where id=?",
+               (kind, table, (body.get("name") or s["name"]).strip(), sid))
+    DB.commit()
+    return {"id": sid}
+
+
+def source_rows(s: dict) -> list[dict]:
+    if s["type"] == "sqlite":
+        if not s["table_name"]:
+            raise ValueError("choose which table to read first")
+        return read_sqlite(s["file_path"], s["table_name"])
+    return fetch_url(s["url"])
+
+
+def sync_source(sid: int, dry_run: bool) -> dict:
+    s = _source(sid)
+    rows = source_rows(s)
+    res = import_rows(s["kind"], rows, f"db:{s['name']}" + (f" / {s['table_name']}" if s["table_name"] else ""),
+                      source=f"db:{s['name']}" if s["kind"] == "registry" else None, dry_run=dry_run)
+    if not dry_run:
+        DB.execute("update sources set last_sync=?, last_result=? where id=?",
+                   (store.now(), json.dumps({k: res[k] for k in ("rows", "inserted", "updated", "skipped")}), sid))
+        DB.commit()
+    return res
+
+
+def delete_source(sid: int) -> dict:
+    s = _source(sid)
+    if s["file_path"]:
+        Path(s["file_path"]).unlink(missing_ok=True)
+    DB.execute("delete from sources where id=?", (sid,))
+    DB.commit()
+    return {"deleted": sid}
+
+
+# --------------------------------------------------------------------------- backup / restore
+def backup_bytes() -> bytes:
+    tmp = Path(tempfile.mkdtemp()) / "backup.db"
+    dst = sqlite3.connect(str(tmp))
+    DB.backup(dst)
+    dst.close()
+    data = tmp.read_bytes()
+    tmp.unlink()
+    return data
+
+
+def restore(body: dict) -> dict:
+    raw = base64.b64decode(body.get("file_b64") or "")
+    if not raw.startswith(b"SQLite format 3\x00"):
+        raise ValueError("that file is not a dashboard backup (.db)")
+    tmp = Path(tempfile.mkdtemp()) / "restore.db"
+    tmp.write_bytes(raw)
+    src = sqlite3.connect(str(tmp))
+    try:
+        if src.execute("pragma integrity_check").fetchone()[0] != "ok":
+            raise ValueError("backup file is damaged (integrity check failed)")
+        names = {r[0] for r in src.execute("select name from sqlite_master where type='table'")}
+        missing = {"vendors", "gst_registry", "checks"} - names
+        if missing:
+            raise ValueError(f"not a dashboard backup: missing tables {', '.join(sorted(missing))}")
+        counts = {t: src.execute(f"select count(*) from {t}").fetchone()[0] for t in ("vendors", "gst_registry", "checks")}
+        BACKUP_DIR.mkdir(exist_ok=True)
+        safety = BACKUP_DIR / f"before-restore-{time.strftime('%Y%m%d-%H%M%S')}.db"
+        safety.write_bytes(backup_bytes())
+        src.backup(DB)
+    finally:
+        src.close()
+        tmp.unlink(missing_ok=True)
+    DB.executescript(store.SCHEMA)
+    DB.commit()
+    return {"restored": counts, "previous_data_saved_to": f"dashboard/backups/{safety.name}"}
 
 
 def seed() -> dict:
@@ -258,6 +481,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def _body(self):
         n = int(self.headers.get("content-length") or 0)
+        if n > MAX_BODY:
+            raise ValueError("upload is larger than 80 MB")
         raw = self.rfile.read(n).decode("utf-8-sig") if n else ""
         if "json" in (self.headers.get("content-type") or ""):
             return json.loads(raw or "{}")
@@ -291,6 +516,12 @@ class Handler(BaseHTTPRequestHandler):
                 if p == "/api/export.csv":
                     return self._send(200, export_csv(), "text/csv",
                                       {"content-disposition": "attachment; filename=gem_vendor_checks.csv"})
+                if p == "/api/sources":
+                    return self._send(200, list_sources())
+                if p == "/api/db/backup":
+                    return self._send(200, backup_bytes(), "application/octet-stream",
+                                      {"content-disposition": f"attachment; filename=gem-dashboard-backup-"
+                                                              f"{time.strftime('%Y%m%d-%H%M')}.db"})
                 if m := re.fullmatch(r"/api/template/(vendors|registry)\.csv", p):
                     return self._send(200, ",".join(TEMPLATES[m[1]]) + "\n", "text/csv",
                                       {"content-disposition": f"attachment; filename={m[1]}_template.csv"})
@@ -298,9 +529,20 @@ class Handler(BaseHTTPRequestHandler):
                 body = self._body()
                 if p == "/api/vendors":
                     return self._send(200, add_vendor(body))
+                dry = bool(q.get("dry_run"))
                 if p == "/api/upload":
                     return self._send(200, do_upload((q.get("kind") or [""])[0], body,
-                                                     self.headers.get("content-type") or ""))
+                                                     self.headers.get("content-type") or "", dry_run=dry))
+                if p == "/api/registry":
+                    return self._send(200, add_registry(body, dry))
+                if p == "/api/sources":
+                    return self._send(200, create_source(body))
+                if m := re.fullmatch(r"/api/sources/(\d+)", p):
+                    return self._send(200, update_source(int(m[1]), body))
+                if m := re.fullmatch(r"/api/sources/(\d+)/(verify|sync)", p):
+                    return self._send(200, sync_source(int(m[1]), dry_run=m[2] == "verify"))
+                if p == "/api/db/restore":
+                    return self._send(200, restore(body))
                 if p == "/api/seed":
                     return self._send(200, seed())
                 if p == "/api/check-all":
@@ -310,6 +552,8 @@ class Handler(BaseHTTPRequestHandler):
                 if m := re.fullmatch(r"/api/checks/(\d+)/review", p):
                     return self._send(200, review(int(m[1]), body))
             if method == "DELETE":
+                if m := re.fullmatch(r"/api/sources/(\d+)", p):
+                    return self._send(200, delete_source(int(m[1])))
                 if m := re.fullmatch(r"/api/vendors/(\d+)", p):
                     DB.execute("delete from checks where vendor_id=?", (int(m[1]),))
                     DB.execute("delete from vendors where id=?", (int(m[1]),))

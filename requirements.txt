@@ -1,4 +1,2 @@
 httpx
 rapidfuzz
-streamlit
-pytest

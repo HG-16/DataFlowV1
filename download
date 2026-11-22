@@ -1,3 +1,5 @@
 dashboard.db
 crust_cache.db
 __pycache__/
+sources/
+backups/

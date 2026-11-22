@@ -42,6 +42,7 @@ body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.45 sy
 button, input, select, textarea { font: inherit; color: inherit; }
 a { color: var(--brand); }
 .top { background: var(--surface); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 10; }
+@media (max-height: 640px) { .top { position: static; } }
 .top-inner { max-width: 1280px; margin: 0 auto; padding: 0 16px; display: flex; align-items: center; gap: 16px; min-height: 60px; flex-wrap: wrap; }
 .tricolor { width: 6px; height: 34px; border-radius: 3px; background: linear-gradient(#ff9933 0 33%, #ffffff 33% 66%, #138808 66%); border: 1px solid var(--line); }
 .brand h1 { font-size: 16px; margin: 0; letter-spacing: .1px; }
@@ -147,6 +148,19 @@ dl.kv dt { color: var(--muted); } dl.kv dd { margin: 0; overflow-wrap: anywhere;
 details summary { cursor: pointer; color: var(--ink-2); }
 .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
 .form-grid label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+/* verification report */
+.verify { margin-top: 12px; display: grid; gap: 10px; }
+.vsum { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.vtable td { white-space: normal !important; vertical-align: top; }
+.vtable .iss { margin: 0; padding: 0; list-style: none; font-size: 12px; }
+.vtable .iss li { padding: 1px 0; } .vtable .iss .error { color: var(--critical-text); } .vtable .iss .warning { color: var(--warning-text); } .vtable .iss .info { color: var(--muted); }
+.b-ok { background: var(--good-bg); color: var(--good-text); } .b-error { background: var(--critical-bg); color: var(--critical-text); }
+.seg-tabs { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; }
+.seg-tabs button { border: 0; background: var(--surface); padding: 7px 12px; cursor: pointer; }
+.seg-tabs button.on { background: var(--brand); color: var(--brand-ink); }
+.src-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.src-row:last-child { border-bottom: 0; }
+@media (max-width: 640px) { .src-row { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -158,6 +172,7 @@ details summary { cursor: pointer; color: var(--ink-2); }
     <button data-v="lookup">GSTIN Lookup</button>
     <button data-v="vendors">Vendors</button>
     <button data-v="upload">Upload Data</button>
+    <button data-v="databases">Databases</button>
     <button data-v="registry">GST Registry</button>
   </nav>
   <button class="theme" id="themeBtn" title="Toggle theme">◐</button>
@@ -230,6 +245,7 @@ details summary { cursor: pointer; color: var(--ink-2); }
         <label>Tender value (₹)<input type="text" name="tender_value_inr"></label>
         <label>Key personnel (Name|Title; …)<input type="text" name="key_personnel"></label>
       </div>
+      <div id="vendIssues"></div>
       <div class="row" style="margin-top:12px"><button class="btn primary">Save and check</button><button class="btn" type="button" id="cancelAdd">Cancel</button></div>
     </form>
     <div class="table-wrap"><table>
@@ -242,7 +258,7 @@ details summary { cursor: pointer; color: var(--ink-2); }
 <!-- UPLOAD -->
 <section class="view" id="v-upload">
   <h2>Upload data</h2>
-  <p class="sub">Load records by hand when there's no API access. CSV, Excel (.xlsx) and JSON are accepted; column names are matched loosely (e.g. "GST No", "GSTN" and "gstin" all work). Existing rows are updated by GSTIN.</p>
+  <p class="sub">Load records by hand when there's no API access. CSV, Excel (.xlsx) and JSON are accepted; column names are matched loosely (e.g. "GST No", "GSTN" and "gstin" all work). Every row is verified first; rows with errors are never imported. Existing rows are updated by GSTIN.</p>
   <div class="grid two eq">
     <div class="card">
       <h3>1 · Vendor / bid database</h3>
@@ -267,10 +283,66 @@ details summary { cursor: pointer; color: var(--ink-2); }
   </div>
 </section>
 
+<!-- DATABASES -->
+<section class="view" id="v-databases">
+  <h2>Databases</h2>
+  <p class="sub">Connect a department database and import from it after verification, then re-sync whenever it changes. You can also back up or restore the whole dashboard database.</p>
+  <div class="grid two eq">
+    <form class="card" id="srcForm">
+      <h3>Add a database</h3>
+      <div class="seg-tabs" role="tablist" style="margin-bottom:12px">
+        <button type="button" data-t="sqlite" class="on">Database file</button>
+        <button type="button" data-t="url">Online link</button>
+      </div>
+      <div class="form-grid" style="grid-template-columns:1fr">
+        <label>Name<input type="text" name="name" placeholder="e.g. State GST master 2026" required></label>
+        <label>It contains<select name="kind"><option value="vendors">Vendor / bid records</option><option value="registry">GST registry (taxpayer records)</option></select></label>
+        <label class="t-sqlite">SQLite database file (.db, .sqlite, .sqlite3)<input type="file" name="file" accept=".db,.sqlite,.sqlite3,.db3"></label>
+        <label class="t-url" style="display:none">Link to a CSV or JSON file / API<input type="text" name="url" placeholder="https://data.gov.in/…/gst.csv"></label>
+      </div>
+      <p class="small muted t-sqlite">For MySQL, PostgreSQL, Oracle or Excel, export the table to CSV and use <b>Upload Data</b>, or publish it as a CSV/JSON link.</p>
+      <p class="small muted t-url" style="display:none">The link is fetched by the server each time you sync. Up to 25 MB.</p>
+      <button class="btn primary">Connect</button>
+    </form>
+    <div class="card">
+      <h3>Backup &amp; restore</h3>
+      <p class="small muted" style="margin-top:-6px">Download everything (vendors, GST registry, checks, sign-offs, connected databases) as one file, or upload a backup to replace the current data.</p>
+      <div class="row"><a class="btn" href="/api/db/backup">Download backup</a></div>
+      <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+      <label class="drop" id="restoreDrop"><input type="file" accept=".db,.sqlite,.sqlite3" hidden><strong>Upload a backup to restore</strong><span class="small muted">.db file downloaded from this page</span></label>
+      <div id="restoreOut"></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h3>Connected databases</h3>
+    <div id="srcList"></div>
+  </div>
+  <div id="srcVerify" class="card" style="margin-top:16px;display:none"></div>
+</section>
+
 <!-- REGISTRY -->
 <section class="view" id="v-registry">
-  <h2>GST registry</h2>
-  <p class="sub">Every GSTIN the desk knows about, from uploads and automatic lookups.</p>
+  <div class="row" style="margin-bottom:14px">
+    <div><h2>GST registry</h2><p class="sub" style="margin:0">Every GSTIN the desk knows about, from uploads, connected databases, manual entry and automatic lookups.</p></div>
+    <div class="spacer"></div>
+    <button class="btn" id="addRegBtn">Add record manually</button>
+  </div>
+  <form id="regForm" class="card" style="display:none;margin-bottom:16px">
+    <h3>Add or correct a GST registry record</h3>
+    <p class="small muted" style="margin-top:-6px">For example, copied from services.gst.gov.in. An existing GSTIN is updated. The record is verified before it's saved.</p>
+    <div class="form-grid">
+      <label>GSTIN<input type="text" name="gstin" class="mono" maxlength="15" required></label>
+      <label>Legal name<input type="text" name="legal_name"></label>
+      <label>Trade name<input type="text" name="trade_name"></label>
+      <label>Status<select name="status"><option>Active</option><option>Cancelled</option><option>Suspended</option><option>Inactive</option><option>Provisional</option></select></label>
+      <label>Date of registration<input type="date" name="registration_date"></label>
+      <label>GSTR-3B filed in last 12 months<input type="number" name="gstr3b_filed_last_12" min="0" max="12"></label>
+      <label>Constitution<input type="text" name="constitution" placeholder="Private Limited Company"></label>
+      <label>Address<input type="text" name="address"></label>
+    </div>
+    <div id="regIssues"></div>
+    <div class="row" style="margin-top:12px"><button class="btn" type="button" id="regVerify">Verify</button><button class="btn primary">Save record</button><button class="btn" type="button" id="regCancel">Cancel</button></div>
+  </form>
   <div class="card">
     <div class="row" style="margin-bottom:10px"><input type="search" id="rq" placeholder="Search GSTIN or name…" style="flex:1 1 240px"></div>
     <div class="table-wrap"><table>
@@ -331,7 +403,7 @@ document.addEventListener("mousemove", e => {
 function show(v) {
   $$("#nav button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
   $$(".view").forEach(s => s.classList.toggle("on", s.id === "v-" + v));
-  ({overview: loadOverview, vendors: loadVendors, upload: loadUploads, registry: loadRegistry})[v]?.();
+  ({overview: loadOverview, vendors: loadVendors, upload: loadUploads, databases: () => loadSources(), registry: loadRegistry})[v]?.();
   if (location.hash.slice(1).split("/")[0] !== v) history.replaceState(null, "", "#" + v);
 }
 $$("#nav button").forEach(b => b.onclick = () => show(b.dataset.v));
@@ -494,9 +566,13 @@ $("#addVendorForm").onsubmit = async e => {
   e.preventDefault();
   const body = Object.fromEntries([...new FormData(e.target)].filter(([, v]) => v.trim()));
   try {
+    const rep = await api("/api/upload?kind=vendors&dry_run=1", {method: "POST", body: JSON.stringify({filename: "manual entry", rows: [body]})});
+    if (rep.counts.error) { $("#vendIssues").innerHTML = regIssues(rep); return; }
+    $("#vendIssues").innerHTML = "";
+    const warns = rep.details[0].issues.filter(i => i.level === "warning").length;
     const r = await api("/api/vendors", {method: "POST", body: JSON.stringify(body)});
     await api(`/api/check/${r.id}`, {method: "POST"});
-    e.target.reset(); e.target.style.display = "none"; toast("Vendor saved and checked"); loadVendors(); openVendor(r.id);
+    e.target.reset(); e.target.style.display = "none"; toast(warns ? `Saved and checked, with ${warns} verification warning${warns === 1 ? "" : "s"}: see findings` : "Vendor saved and checked", 4500); loadVendors(); openVendor(r.id);
   } catch (err) { toast("Error: " + err.message, 5000); }
 };
 
@@ -598,15 +674,36 @@ function readRows(file) {
     isXlsx ? fr.readAsArrayBuffer(file) : fr.readAsText(file);
   });
 }
-function previewRows(rows) {
-  if (!rows?.length) return "";
-  const cols = Object.keys(rows[0]).slice(0, 10);
-  return `<div class="preview"><table><thead><tr>${cols.map(c => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${rows.slice(0, 8).map(r => `<tr>${cols.map(c => `<td>${esc(typeof r[c] === "object" ? JSON.stringify(r[c]) : r[c])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
-}
-function csvRows(text) { // light parser for preview only; the server does the real parse
-  const lines = text.replace(/^﻿/, "").split(/\r?\n/).filter(Boolean); if (lines.length < 2) return [];
-  const split = l => { const out = []; let cur = "", q = false; for (const ch of l) { if (ch === '"') q = !q; else if (ch === "," && !q) { out.push(cur); cur = ""; } else cur += ch; } out.push(cur); return out; };
-  const h = split(lines[0]); return lines.slice(1, 9).map(l => Object.fromEntries(split(l).map((v, i) => [h[i], v])));
+// Verification report shared by file upload, connected databases and manual entry.
+// importFn(runChecks) performs the import and resolves to a summary message.
+const ACTION = {insert: "new", update: "updates existing", skip: "not imported"};
+function showVerification(out, rep, title, importFn) {
+  const c = rep.counts, a = rep.actions, n = a.insert + a.update;
+  const rowsHtml = only => rep.details.filter(d => !only || d.status !== "ok" || d.issues.some(i => i.level !== "info")).map(d => `
+    <tr><td class="num">${d.row}</td><td>${esc(d.name || "—")}<div class="mono small muted">${esc(d.gstin || "")}</div></td>
+    <td>${badge(d.status, {ok: "OK", warning: "Warning", error: "Blocked"}[d.status])}<div class="small muted">${ACTION[d.action]}</div></td>
+    <td><ul class="iss">${d.issues.map(i => `<li class="${i.level}">${i.level === "error" ? "✕" : i.level === "warning" ? "!" : "·"} ${esc(i.text)}</li>`).join("") || `<li class="info">No issues</li>`}</ul></td></tr>`).join("");
+  out.innerHTML = `<div class="verify">
+    <div class="row"><span class="small">${title} · ${rep.rows} row${rep.rows === 1 ? "" : "s"} verified</span></div>
+    <div class="vsum">${badge("ok", `${c.ok} ready`)}${badge("warning", `${c.warning} with warnings`)}${badge("error", `${c.error} blocked`)}
+      <span class="small muted">${a.insert} new · ${a.update} update existing</span></div>
+    ${c.error ? `<div class="alert critical"><span class="ic">✕</span><div class="small">${c.error} row${c.error === 1 ? " has" : "s have"} errors and won't be imported. Fix them in the source and upload again, or import the rest now.</div></div>` : ""}
+    <label class="small row"><input type="checkbox" class="onlyIssues" ${c.warning + c.error ? "checked" : ""}> show only rows with issues</label>
+    <div class="preview"><table class="vtable"><thead><tr><th class="num">Row</th><th>Record</th><th>Result</th><th>Verification</th></tr></thead><tbody></tbody></table></div>
+    ${rep.details_truncated ? `<p class="small muted">Showing the first ${rep.details.length} rows.</p>` : ""}
+    <div class="row">
+      <button class="btn primary imp" ${n ? "" : "disabled"}>Import ${n} verified row${n === 1 ? "" : "s"}</button>
+      ${rep.kind === "vendors" || rep.kind === "registry" ? `<label class="small row"><input type="checkbox" class="runChecks" checked> run vendor checks after import</label>` : ""}
+      <button class="btn cancelV" type="button">Cancel</button>
+    </div></div>`;
+  const body = $("tbody", out), only = $(".onlyIssues", out);
+  const draw = () => body.innerHTML = rowsHtml(only.checked) || `<tr><td colspan="4" class="empty">Every row passed verification.</td></tr>`;
+  only.onchange = draw; draw();
+  $(".cancelV", out).onclick = () => { out.innerHTML = ""; if (out.id === "srcVerify") out.style.display = "none"; };
+  $(".imp", out).onclick = e => busy(e.target, async () => {
+    const msg = await importFn($(".runChecks", out)?.checked);
+    out.innerHTML = `<div class="alert ${c.error ? "warning" : "ok"}" style="margin-top:12px"><span class="ic">${c.error ? "!" : "✓"}</span><div>${esc(msg)}</div></div>`;
+  });
 }
 $$(".drop").forEach(drop => {
   const input = $("input", drop), kind = drop.dataset.kind, out = drop.nextElementSibling;
@@ -615,16 +712,15 @@ $$(".drop").forEach(drop => {
     out.innerHTML = `<p class="small muted">Reading ${esc(file.name)}…</p>`;
     try {
       const data = await readRows(file);
-      let rows = data.rows;
-      if (!rows) { try { const j = JSON.parse(data.content); rows = Array.isArray(j) ? j : (j.vendors || j.rows || j.data || [j]); } catch { rows = csvRows(data.content); } }
-      out.innerHTML = `<p class="small" style="margin:12px 0 0"><b>${esc(file.name)}</b> · preview of first rows</p>${previewRows(rows)}
-        <div class="row" style="margin-top:10px"><button class="btn primary">Import ${esc(kind === "vendors" ? "vendors" : "registry")}</button><label class="small row"><input type="checkbox" checked> run checks after import</label></div>`;
-      $("button", out).onclick = e => busy(e.target, async () => {
-        const r = await api(`/api/upload?kind=${kind}`, {method: "POST", body: JSON.stringify({filename: file.name, ...data})});
-        let msg = `${r.rows} rows · ${r.inserted} new · ${r.updated} updated · ${r.skipped} skipped`;
-        if ($("input[type=checkbox]", out).checked) { const c = await api("/api/check-all", {method: "POST"}); msg += ` · ${c.checked} checks run`; }
-        out.innerHTML = `<div class="alert ${r.skipped ? "warning" : "ok"}" style="margin-top:12px"><span class="ic">${r.skipped ? "!" : "✓"}</span><div>${msg}${r.errors.length ? `<div class="small">${r.errors.map(esc).join("<br>")}</div>` : ""}</div></div>`;
+      const payload = JSON.stringify({filename: file.name, ...data});
+      out.innerHTML = `<p class="small muted">Verifying ${esc(file.name)}…</p>`;
+      const rep = await api(`/api/upload?kind=${kind}&dry_run=1`, {method: "POST", body: payload});
+      showVerification(out, rep, `<b>${esc(file.name)}</b>`, async runChecks => {
+        const r = await api(`/api/upload?kind=${kind}`, {method: "POST", body: payload});
+        let msg = `${r.rows} rows · ${r.inserted} new · ${r.updated} updated · ${r.skipped} blocked`;
+        if (runChecks) { const c = await api("/api/check-all", {method: "POST"}); msg += ` · ${c.checked} checks run`; }
         loadUploads();
+        return msg;
       });
     } catch (e) { out.innerHTML = `<div class="alert critical" style="margin-top:12px"><span class="ic">!</span><div>${esc(e.message)}</div></div>`; }
     input.value = "";
@@ -658,11 +754,117 @@ async function loadRegistry() {
 }
 $("#rq").oninput = () => { clearTimeout(rtimer); rtimer = setTimeout(loadRegistry, 200); };
 
+// ---------------------------------------------------------------- databases
+const fileB64 = file => new Promise((res, rej) => { const fr = new FileReader(); fr.onerror = () => rej(fr.error); fr.onload = () => res(String(fr.result).split(",")[1] || ""); fr.readAsDataURL(file); });
+let srcType = "sqlite";
+$$("#srcForm .seg-tabs button").forEach(b => b.onclick = () => {
+  srcType = b.dataset.t;
+  $$("#srcForm .seg-tabs button").forEach(x => x.classList.toggle("on", x === b));
+  $$("#srcForm .t-sqlite").forEach(el => el.style.display = srcType === "sqlite" ? "" : "none");
+  $$("#srcForm .t-url").forEach(el => el.style.display = srcType === "url" ? "" : "none");
+});
+$("#srcForm").onsubmit = e => {
+  e.preventDefault();
+  const f = e.target, btn = $("button.primary", f);
+  busy(btn, async () => {
+    const body = {name: f.name.value, kind: f.kind.value, type: srcType};
+    if (srcType === "sqlite") {
+      const file = f.file.files[0]; if (!file) throw new Error("Choose a database file");
+      body.filename = file.name; body.file_b64 = await fileB64(file);
+    } else body.url = f.url.value;
+    const r = await api("/api/sources", {method: "POST", body: JSON.stringify(body)});
+    f.reset(); toast("Database connected. Choose a table if needed, then verify.");
+    await loadSources(r.id);
+  });
+};
+async function loadSources(focusId) {
+  const list = await api("/api/sources");
+  $("#srcList").innerHTML = list.length ? list.map(s => {
+    const lr = s.last_result;
+    const tables = s.type === "sqlite" ? `<label class="small muted row" style="margin-top:6px">Table
+        <select data-table="${s.id}"><option value="">choose a table…</option>${(s.tables || []).map(t => `<option value="${esc(t.table)}" data-guess="${t.guess}" ${t.table === s.table_name ? "selected" : ""}>${esc(t.table)} (${t.rows} rows${t.table === s.table_name ? "" : `, looks like ${t.guess === "registry" ? "GST registry" : "vendors"}`})</option>`).join("")}</select></label>` : "";
+    return `<div class="src-row" ${s.id === focusId ? 'style="background:var(--brand-soft);margin:0 -16px;padding:12px 16px"' : ""}>
+      <div><b>${esc(s.name)}</b> <span class="pill-src">${s.type === "sqlite" ? "database file" : "online link"}</span> <span class="pill-src">${s.kind === "registry" ? "GST registry" : "vendors"}</span>
+        ${s.url ? `<div class="small muted" style="overflow-wrap:anywhere">${esc(s.url)}</div>` : ""}
+        ${s.error ? `<div class="small" style="color:var(--critical-text)">${esc(s.error)}</div>` : ""}
+        ${tables}
+        <div class="small muted" style="margin-top:4px">${s.last_sync ? `Last synced ${when(s.last_sync)}: ${lr.rows} rows, ${lr.inserted} new, ${lr.updated} updated, ${lr.skipped} blocked` : "Never synced"}</div></div>
+      <div class="row" style="align-content:flex-start">
+        <button class="btn" data-verify="${s.id}">Verify &amp; import</button>
+        <button class="btn sm danger" data-del="${s.id}" aria-label="Remove ${esc(s.name)}">Remove</button></div></div>`;
+  }).join("") : `<div class="empty">No databases connected yet.</div>`;
+  $$("#srcList [data-table]").forEach(sel => sel.onchange = async () => {
+    const opt = sel.selectedOptions[0];
+    try { await api(`/api/sources/${sel.dataset.table}`, {method: "POST", body: JSON.stringify({table: sel.value || null, kind: opt?.dataset.guess || undefined})}); loadSources(+sel.dataset.table); }
+    catch (e) { toast("Error: " + e.message); }
+  });
+  $$("#srcList [data-verify]").forEach(b => b.onclick = () => busy(b, () => verifySource(+b.dataset.verify, list.find(s => s.id === +b.dataset.verify))));
+  $$("#srcList [data-del]").forEach(b => b.onclick = async () => {
+    const s = list.find(x => x.id === +b.dataset.del);
+    if (!confirm(`Disconnect "${s.name}"? Records already imported from it stay.`)) return;
+    await api(`/api/sources/${s.id}`, {method: "DELETE"}); $("#srcVerify").style.display = "none"; loadSources();
+  });
+}
+async function verifySource(id, s) {
+  const out = $("#srcVerify");
+  const rep = await api(`/api/sources/${id}/verify`, {method: "POST"});
+  out.style.display = "block";
+  showVerification(out, rep, `<b>${esc(s.name)}</b>${s.table_name ? " · " + esc(s.table_name) : ""}`, async runChecks => {
+    const r = await api(`/api/sources/${id}/sync`, {method: "POST"});
+    let msg = `Synced: ${r.rows} rows · ${r.inserted} new · ${r.updated} updated · ${r.skipped} blocked`;
+    if (runChecks) { const c = await api("/api/check-all", {method: "POST"}); msg += ` · ${c.checked} checks run`; }
+    loadSources(id);
+    return msg;
+  });
+  out.scrollIntoView({behavior: "smooth", block: "start"});
+}
+(function () {
+  const drop = $("#restoreDrop"), input = $("input", drop), out = $("#restoreOut");
+  const handle = async file => {
+    if (!file) return;
+    if (!confirm(`Restore from "${file.name}"?\n\nThis REPLACES all current vendors, GST registry records, checks and sign-offs with the backup's contents. The current data is saved to dashboard/backups/ first.`)) { input.value = ""; return; }
+    out.innerHTML = `<p class="small muted">Restoring…</p>`;
+    try {
+      const r = await api("/api/db/restore", {method: "POST", body: JSON.stringify({file_b64: await fileB64(file)})});
+      out.innerHTML = `<div class="alert ok" style="margin-top:12px"><span class="ic">✓</span><div>Restored ${r.restored.vendors} vendors, ${r.restored.gst_registry} registry records, ${r.restored.checks} checks.<div class="small">Previous data saved to <span class="mono">${esc(r.previous_data_saved_to)}</span></div></div></div>`;
+      loadSources();
+    } catch (e) { out.innerHTML = `<div class="alert critical" style="margin-top:12px"><span class="ic">!</span><div>${esc(e.message)}</div></div>`; }
+    input.value = "";
+  };
+  input.onchange = () => handle(input.files[0]);
+  drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
+  drop.ondragleave = () => drop.classList.remove("over");
+  drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); handle(e.dataTransfer.files[0]); };
+})();
+
+// ---------------------------------------------------------------- manual registry entry
+const regBody = () => Object.fromEntries([...new FormData($("#regForm"))].filter(([, v]) => String(v).trim()).map(([k, v]) => [k, String(v).trim()]));
+function regIssues(rep) {
+  const d = rep.details[0];
+  if (!d) return "";
+  const issues = d.issues.filter(i => i.level !== "info" || rep.counts.error === 0);
+  return `<div class="alert ${d.status === "error" ? "critical" : d.status === "warning" ? "warning" : "ok"}" style="margin-top:12px"><span class="ic">${d.status === "ok" ? "✓" : "!"}</span>
+    <div>${d.status === "error" ? "<b>Can't save:</b>" : d.status === "warning" ? "<b>Can be saved, with warnings:</b>" : `<b>Verified.</b> ${d.action === "update" ? "This updates an existing record." : "This adds a new record."}`}
+    ${issues.length ? `<ul class="iss" style="margin-top:4px">${issues.map(i => `<li>${esc(i.text)}</li>`).join("")}</ul>` : ""}</div></div>`;
+}
+$("#addRegBtn").onclick = () => { const f = $("#regForm"); f.style.display = f.style.display === "none" ? "block" : "none"; $("#regIssues").innerHTML = ""; };
+$("#regCancel").onclick = () => $("#regForm").style.display = "none";
+$("#regVerify").onclick = e => busy(e.target, async () => { $("#regIssues").innerHTML = regIssues(await api("/api/registry?dry_run=1", {method: "POST", body: JSON.stringify(regBody())})); });
+$("#regForm").onsubmit = e => {
+  e.preventDefault();
+  busy($("button.primary", e.target), async () => {
+    const rep = await api("/api/registry?dry_run=1", {method: "POST", body: JSON.stringify(regBody())});
+    if (rep.counts.error) { $("#regIssues").innerHTML = regIssues(rep); return; }
+    await api("/api/registry", {method: "POST", body: JSON.stringify(regBody())});
+    toast(`Saved ${regBody().gstin}`); e.target.reset(); e.target.style.display = "none"; loadRegistry();
+  });
+};
+
 // boot
 (function () {
   const [v, arg] = location.hash.slice(1).split("/");
   if (v === "lookup" && arg) lookupGstin(decodeURIComponent(arg));
-  else show(["overview", "lookup", "vendors", "upload", "registry"].includes(v) ? v : "overview");
+  else show(["overview", "lookup", "vendors", "upload", "databases", "registry"].includes(v) ? v : "overview");
 })();
 </script>
 </body>

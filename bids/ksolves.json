@@ -1,0 +1,13 @@
+{
+  "vendor_name": "Ksolves India Limited",
+  "domain": "ksolves.com",
+  "claimed_headcount": 600,
+  "claimed_year_founded": 2012,
+  "entity_type": "public limited",
+  "state": "Uttar Pradesh",
+  "key_personnel": [
+    {"name": "Ratan Srivastava", "title": "Founder & CEO"},
+    {"name": "Manish Gurnani", "title": "CTO"}
+  ],
+  "tender": {"id": "DEMO", "title": "Departmental ERP + data platform", "value_inr": 50000000}
+}

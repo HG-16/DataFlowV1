@@ -1,0 +1,1549 @@
+{
+ "_note": "Real Crustdata API v2025-11-01 responses captured 2026-11-22 via the Crustdata MCP connector for the Ksolves demo bids. Long descriptions trimmed, search result lists trimmed to the first few items, fuzzy company matches trimmed; values unchanged.",
+ "calls": [
+  {
+   "path": "/company/identify",
+   "body": {
+    "domains": [
+     "ksolves.com"
+    ]
+   },
+   "response": [
+    {
+     "matched_on": "ksolves.com",
+     "match_type": "domain",
+     "matches": [
+      {
+       "confidence_score": 1.0,
+       "company_data": {
+        "crustdata_company_id": 1050058,
+        "basic_info": {
+         "name": "Ksolves India Limited",
+         "crustdata_company_id": 1050058,
+         "primary_domain": "ksolves.com",
+         "all_domains": [
+          "ksolves.com",
+          "dfmanager.com"
+         ],
+         "website": "https://www.ksolves.com",
+         "professional_network_url": "https://www.linkedin.com/company/ksolves",
+         "company_type": "Public Company",
+         "year_founded": 2012,
+         "employee_count_range": "501-1000",
+         "markets": [
+          "NSE"
+         ],
+         "industries": [
+          "IT Services and IT Consulting",
+          "Professional Services"
+         ]
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "path": "/company/identify",
+   "body": {
+    "names": [
+     "Ksolves India Limited"
+    ]
+   },
+   "response": [
+    {
+     "matched_on": "Ksolves India Limited",
+     "match_type": "name",
+     "matches": [
+      {
+       "confidence_score": 1.0,
+       "company_data": {
+        "crustdata_company_id": 1050058,
+        "basic_info": {
+         "name": "Ksolves India Limited",
+         "crustdata_company_id": 1050058,
+         "primary_domain": "ksolves.com",
+         "all_domains": [
+          "ksolves.com",
+          "dfmanager.com"
+         ],
+         "website": "https://www.ksolves.com",
+         "professional_network_url": "https://www.linkedin.com/company/ksolves",
+         "company_type": "Public Company",
+         "year_founded": 2012,
+         "employee_count_range": "501-1000",
+         "markets": [
+          "NSE"
+         ],
+         "industries": [
+          "IT Services and IT Consulting",
+          "Professional Services"
+         ]
+        }
+       }
+      },
+      {
+       "confidence_score": 0.6,
+       "company_data": {
+        "crustdata_company_id": 4316,
+        "basic_info": {
+         "name": "State Bank of India",
+         "crustdata_company_id": 4316,
+         "primary_domain": "sbi.bank.in",
+         "all_domains": [
+          "sbi.bank.in",
+          "bank.sbi"
+         ]
+        }
+       }
+      },
+      {
+       "confidence_score": 0.6,
+       "company_data": {
+        "crustdata_company_id": 1098,
+        "basic_info": {
+         "name": "Dabur India Limited",
+         "crustdata_company_id": 1098,
+         "primary_domain": "dabur.com",
+         "all_domains": [
+          "dabur.com"
+         ]
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "path": "/company/identify",
+   "body": {
+    "domains": [
+     "ksolves.co"
+    ]
+   },
+   "response": [
+    {
+     "matched_on": "ksolves.co",
+     "match_type": "domain",
+     "matches": [
+      {
+       "confidence_score": 1.0,
+       "company_data": {
+        "crustdata_company_id": 1050058,
+        "basic_info": {
+         "name": "Ksolves India Limited",
+         "crustdata_company_id": 1050058,
+         "primary_domain": "ksolves.com",
+         "all_domains": [
+          "ksolves.com",
+          "dfmanager.com"
+         ],
+         "website": "https://www.ksolves.com",
+         "professional_network_url": "https://www.linkedin.com/company/ksolves",
+         "company_type": "Public Company",
+         "year_founded": 2012,
+         "employee_count_range": "501-1000",
+         "markets": [
+          "NSE"
+         ],
+         "industries": [
+          "IT Services and IT Consulting",
+          "Professional Services"
+         ]
+        }
+       }
+      },
+      {
+       "confidence_score": 1.0,
+       "company_data": {
+        "crustdata_company_id": 8491791,
+        "basic_info": {
+         "name": "Ksolves | Salesforce Summit Partner",
+         "crustdata_company_id": 8491791,
+         "primary_domain": "ksolves.com",
+         "all_domains": [
+          "ksolves.com"
+         ]
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "path": "/company/enrich",
+   "body": {
+    "fields": [
+     "basic_info",
+     "headcount",
+     "hiring",
+     "people"
+    ],
+    "crustdata_company_ids": [
+     1050058
+    ]
+   },
+   "response": [
+    {
+     "matched_on": "1050058",
+     "match_type": "crustdata_company_id",
+     "matches": [
+      {
+       "confidence_score": 1.0,
+       "company_data": {
+        "crustdata_company_id": 1050058,
+        "basic_info": {
+         "name": "Ksolves India Limited",
+         "crustdata_company_id": 1050058,
+         "primary_domain": "ksolves.com",
+         "all_domains": [
+          "ksolves.com",
+          "dfmanager.com"
+         ],
+         "website": "https://www.ksolves.com",
+         "professional_network_url": "https://www.linkedin.com/company/ksolves",
+         "company_type": "Public Company",
+         "year_founded": 2012,
+         "employee_count_range": "501-1000",
+         "markets": [
+          "NSE"
+         ],
+         "industries": [
+          "IT Services and IT Consulting",
+          "Professional Services"
+         ]
+        },
+        "headcount": {
+         "total": 866,
+         "largest_headcount_country": "IND"
+        },
+        "hiring": {
+         "recent_titles_csv": null,
+         "openings_count": null,
+         "openings_growth_percent": null,
+         "by_function_qoq_pct": null,
+         "by_function_6m_pct": null
+        },
+        "people": {
+         "founders": [],
+         "cxos": [
+          {
+           "crustdata_person_id": 376775,
+           "basic_profile": {
+            "name": "Umang Soni ",
+            "headline": "CFO at Ksolves India Limited | IIM-Trichy | Chartered Accountant | Investor Relations & Capital Markets | Global Expansion | Governance & Compliance"
+           },
+           "social_handles": {
+            "professional_network_identifier": {
+             "profile_url": "https://www.linkedin.com/in/umangsonijain-ca"
+            },
+            "twitter_identifier": {
+             "slug": null
+            }
+           },
+           "experience": {
+            "employment_details": {
+             "current": [
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Chief Financial Officer (CFO)"
+              }
+             ],
+             "past": [
+              {
+               "employer_name": "V. K. Ladha & Associates",
+               "employee_title": "Audit Manager"
+              },
+              {
+               "employer_name": "M/s. Lalit K. Jain & Co.",
+               "employee_title": "Assistant"
+              },
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Senior Finance Manager"
+              }
+             ]
+            }
+           },
+           "updated_at": "2026-11-07T01:41:17.477Z"
+          },
+          {
+           "crustdata_person_id": 376774,
+           "basic_profile": {
+            "name": "Manish Gurnani",
+            "headline": "Chief Technology Officer (CTO) at Ksolves India Limited | AI | ML | Cloud Computing | IT Strategy |Technical Leadership |"
+           },
+           "social_handles": {
+            "professional_network_identifier": {
+             "profile_url": "https://www.linkedin.com/in/gurnanim"
+            },
+            "twitter_identifier": {
+             "slug": null
+            }
+           },
+           "experience": {
+            "employment_details": {
+             "current": [
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Chief Technology Officer"
+              }
+             ],
+             "past": [
+              {
+               "employer_name": "Tech Mahindra",
+               "employee_title": "Sr. Tech Associate"
+              },
+              {
+               "employer_name": "Infogain",
+               "employee_title": "Associate Consultant"
+              },
+              {
+               "employer_name": "NexGen Tech Solutions",
+               "employee_title": "Director, Software Solutions"
+              },
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Sr. Tech Architect"
+              }
+             ]
+            }
+           },
+           "updated_at": "2026-11-10T01:12:34.893Z"
+          },
+          {
+           "crustdata_person_id": 167341,
+           "basic_profile": {
+            "name": "Ratan Srivastava",
+            "headline": "Founder & CEO at Ksolves India Listed on Stock Exchange (NSE & BSE), CMMI 3 Level"
+           },
+           "social_handles": {
+            "professional_network_identifier": {
+             "profile_url": "https://www.linkedin.com/in/ratan-srivastava-5ab571137"
+            },
+            "twitter_identifier": {
+             "slug": null
+            }
+           },
+           "experience": {
+            "employment_details": {
+             "current": [
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Chief Executive Officer"
+              }
+             ],
+             "past": [
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Founder and CEO"
+              },
+              {
+               "employer_name": "Persistent Systems",
+               "employee_title": "Software Developer"
+              },
+              {
+               "employer_name": "Tech Mahindra",
+               "employee_title": "Senior Software Engineer"
+              },
+              {
+               "employer_name": "Birlasoft",
+               "employee_title": "Senior Software Engineer"
+              }
+             ]
+            }
+           },
+           "updated_at": "2026-11-05T23:47:42.874Z"
+          }
+         ],
+         "decision_makers": [
+          {
+           "crustdata_person_id": 37860810,
+           "basic_profile": {
+            "name": "Gopal B.",
+            "headline": "GTM | Sales Development | Revenue Generation | Growth Enthusiast | Data Specialist"
+           },
+           "social_handles": {
+            "professional_network_identifier": {
+             "profile_url": "https://www.linkedin.com/in/gopalbishnoi"
+            },
+            "twitter_identifier": {
+             "slug": null
+            }
+           },
+           "experience": {
+            "employment_details": {
+             "current": [
+              {
+               "employer_name": "RevGenius",
+               "employee_title": "Member"
+              },
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Lead Data Analyst | Database Growth Partner"
+              }
+             ],
+             "past": [
+              {
+               "employer_name": "Astegic",
+               "employee_title": "SR SDR"
+              },
+              {
+               "employer_name": "SalesIntel.io",
+               "employee_title": "SR SDR"
+              },
+              {
+               "employer_name": "Inventive SMi",
+               "employee_title": "SME 3B SR BDE | INVENTIVE SMI"
+              },
+              {
+               "employer_name": "Pangea Global Services",
+               "employee_title": "Email Marketing Strategist | PGS"
+              }
+             ]
+            }
+           },
+           "updated_at": "2026-10-28T12:30:45.713Z"
+          },
+          {
+           "crustdata_person_id": 376775,
+           "basic_profile": {
+            "name": "Umang Soni ",
+            "headline": "CFO at Ksolves India Limited | IIM-Trichy | Chartered Accountant | Investor Relations & Capital Markets | Global Expansion | Governance & Compliance"
+           },
+           "social_handles": {
+            "professional_network_identifier": {
+             "profile_url": "https://www.linkedin.com/in/umangsonijain-ca"
+            },
+            "twitter_identifier": {
+             "slug": null
+            }
+           },
+           "experience": {
+            "employment_details": {
+             "current": [
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Chief Financial Officer (CFO)"
+              }
+             ],
+             "past": [
+              {
+               "employer_name": "V. K. Ladha & Associates",
+               "employee_title": "Audit Manager"
+              },
+              {
+               "employer_name": "M/s. Lalit K. Jain & Co.",
+               "employee_title": "Assistant"
+              },
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Senior Finance Manager"
+              }
+             ]
+            }
+           },
+           "updated_at": "2026-11-07T01:41:17.477Z"
+          },
+          {
+           "crustdata_person_id": 1555527,
+           "basic_profile": {
+            "name": "Kirti Sharma",
+            "headline": "Business Development Head at Ksolves India Limited"
+           },
+           "social_handles": {
+            "professional_network_identifier": {
+             "profile_url": "https://www.linkedin.com/in/kirti-sharma-66b0a8163"
+            },
+            "twitter_identifier": {
+             "slug": null
+            }
+           },
+           "experience": {
+            "employment_details": {
+             "current": [
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Head Of Business Development"
+              }
+             ],
+             "past": [
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Business Development Manager"
+              },
+              {
+               "employer_name": "INLEAD (Indian Institute of Learning and Advanced Development)",
+               "employee_title": "Corporate Affairs Specialist"
+              }
+             ]
+            }
+           },
+           "updated_at": "2026-10-26T22:32:23.602Z"
+          },
+          {
+           "crustdata_person_id": 137076085,
+           "basic_profile": {
+            "name": "Shivang Trivedi",
+            "headline": "Principal AI Engineer "
+           },
+           "social_handles": {
+            "professional_network_identifier": {
+             "profile_url": "https://www.linkedin.com/in/shivang-trivedi-codenscious"
+            },
+            "twitter_identifier": {
+             "slug": null
+            }
+           },
+           "experience": {
+            "employment_details": {
+             "current": [
+              {
+               "employer_name": "CIVA",
+               "employee_title": "Mentor"
+              },
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Principal AI Engineer"
+              }
+             ],
+             "past": [
+              {
+               "employer_name": "codenscious-ai",
+               "employee_title": "Machine Learning Engineer"
+              },
+              {
+               "employer_name": "Indore Institute of Science and Technology",
+               "employee_title": "Advisor - CARE (Center for Application of Research in Engineering)"
+              },
+              {
+               "employer_name": "codenscious-ai",
+               "employee_title": "Head of AI Consulting"
+              },
+              {
+               "employer_name": "Neo Corp International Ltd",
+               "employee_title": "Operational Excellence Manager"
+              }
+             ]
+            }
+           },
+           "updated_at": "2026-10-31T17:41:33.488Z"
+          },
+          {
+           "crustdata_person_id": 4539208,
+           "basic_profile": {
+            "name": "Kirti Sharma",
+            "headline": "Business Development Head at Ksolves India Limited, Listed on NSE & BSE  \n"
+           },
+           "social_handles": {
+            "professional_network_identifier": {
+             "profile_url": "https://www.linkedin.com/in/kirti-sharma-00976264"
+            },
+            "twitter_identifier": {
+             "slug": null
+            }
+           },
+           "experience": {
+            "employment_details": {
+             "current": [
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Head Of Business Development"
+              }
+             ],
+             "past": [
+              {
+               "employer_name": "INLEAD (Indian Institute of Learning and Advanced Development)",
+               "employee_title": "Independent Consultant- Corporate Affairs"
+              },
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Business Development Manager"
+              },
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Senior Business Development Manager"
+              },
+              {
+               "employer_name": "University express",
+               "employee_title": "Columnist"
+              }
+             ]
+            }
+           },
+           "updated_at": "2026-10-27T18:07:30.047Z"
+          },
+          {
+           "crustdata_person_id": 376774,
+           "basic_profile": {
+            "name": "Manish Gurnani",
+            "headline": "Chief Technology Officer (CTO) at Ksolves India Limited | AI | ML | Cloud Computing | IT Strategy |Technical Leadership |"
+           },
+           "social_handles": {
+            "professional_network_identifier": {
+             "profile_url": "https://www.linkedin.com/in/gurnanim"
+            },
+            "twitter_identifier": {
+             "slug": null
+            }
+           },
+           "experience": {
+            "employment_details": {
+             "current": [
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Chief Technology Officer"
+              }
+             ],
+             "past": [
+              {
+               "employer_name": "Tech Mahindra",
+               "employee_title": "Sr. Tech Associate"
+              },
+              {
+               "employer_name": "Infogain",
+               "employee_title": "Associate Consultant"
+              },
+              {
+               "employer_name": "NexGen Tech Solutions",
+               "employee_title": "Director, Software Solutions"
+              },
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Sr. Tech Architect"
+              }
+             ]
+            }
+           },
+           "updated_at": "2026-11-10T01:12:34.893Z"
+          },
+          {
+           "crustdata_person_id": 1239709,
+           "basic_profile": {
+            "name": "Vishwam Pande",
+            "headline": "Salesforce Summit Partner | Consumer Goods Cloud, Marketing Cloud, Data Cloud & Agentforce Solutions | Enterprise-Grade Salesforce Support"
+           },
+           "social_handles": {
+            "professional_network_identifier": {
+             "profile_url": "https://www.linkedin.com/in/vishwam-pande-8713b11ab"
+            },
+            "twitter_identifier": {
+             "slug": null
+            }
+           },
+           "experience": {
+            "employment_details": {
+             "current": [
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Head of Partnerships - Big Data"
+              },
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Head of Partnerships- Data and CRM Practice"
+              },
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Head of Partnerships \u2013 Salesforce Practice"
+              }
+             ],
+             "past": []
+            }
+           },
+           "updated_at": "2026-10-30T03:53:32.046Z"
+          },
+          {
+           "crustdata_person_id": 1239709,
+           "basic_profile": {
+            "name": "Vishwam Pande",
+            "headline": "Salesforce Summit Partner | Consumer Goods Cloud, Marketing Cloud, Data Cloud & Agentforce Solutions | Enterprise-Grade Salesforce Support"
+           },
+           "social_handles": {
+            "professional_network_identifier": {
+             "profile_url": "https://www.linkedin.com/in/vishwam-pande-8713b11ab"
+            },
+            "twitter_identifier": {
+             "slug": null
+            }
+           },
+           "experience": {
+            "employment_details": {
+             "current": [
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Head of Partnerships - Big Data"
+              },
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Head of Partnerships- Data and CRM Practice"
+              },
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Head of Partnerships \u2013 Salesforce Practice"
+              }
+             ],
+             "past": []
+            }
+           },
+           "updated_at": "2026-10-30T03:53:32.046Z"
+          },
+          {
+           "crustdata_person_id": 1239709,
+           "basic_profile": {
+            "name": "Vishwam Pande",
+            "headline": "Salesforce Summit Partner | Consumer Goods Cloud, Marketing Cloud, Data Cloud & Agentforce Solutions | Enterprise-Grade Salesforce Support"
+           },
+           "social_handles": {
+            "professional_network_identifier": {
+             "profile_url": "https://www.linkedin.com/in/vishwam-pande-8713b11ab"
+            },
+            "twitter_identifier": {
+             "slug": null
+            }
+           },
+           "experience": {
+            "employment_details": {
+             "current": [
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Head of Partnerships - Big Data"
+              },
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Head of Partnerships- Data and CRM Practice"
+              },
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Head of Partnerships \u2013 Salesforce Practice"
+              }
+             ],
+             "past": []
+            }
+           },
+           "updated_at": "2026-10-30T03:53:32.046Z"
+          },
+          {
+           "crustdata_person_id": 1793641,
+           "basic_profile": {
+            "name": "Julie  Sharma",
+            "headline": "Helping Businesses Build Smarter Mobile Apps || React Native \u00b7 Flutter \u00b7 PWA \u00b7 Firebase || iOS & Android \u00b7 Hybrid App Specialist || Backed by an NSE & BSE Listed, CMMI Level 3 Company"
+           },
+           "social_handles": {
+            "professional_network_identifier": {
+             "profile_url": "https://www.linkedin.com/in/julie-sharma-08132425b"
+            },
+            "twitter_identifier": {
+             "slug": null
+            }
+           },
+           "experience": {
+            "employment_details": {
+             "current": [
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Mobile Development Partner"
+              }
+             ],
+             "past": []
+            }
+           },
+           "updated_at": "2026-10-30T10:08:21.857Z"
+          },
+          {
+           "crustdata_person_id": 35715250,
+           "basic_profile": {
+            "name": "Najib Saiyed",
+            "headline": "Head of Sales \u2013 North America at Ksolves | Helping Businesses Accelerate Growth Through ERP, CRM, AI, Mobile Apps, Cloud & Digital Transformation Solutions"
+           },
+           "social_handles": {
+            "professional_network_identifier": {
+             "profile_url": "https://www.linkedin.com/in/najeeb2711"
+            },
+            "twitter_identifier": {
+             "slug": null
+            }
+           },
+           "experience": {
+            "employment_details": {
+             "current": [
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Head of Sales - North America"
+              }
+             ],
+             "past": [
+              {
+               "employer_name": "Brainvire",
+               "employee_title": "Associate Business Development Manager"
+              },
+              {
+               "employer_name": "Brainvire",
+               "employee_title": "Sr Business Development Manager"
+              },
+              {
+               "employer_name": "Brainvire",
+               "employee_title": "Sr Business Development Manager"
+              },
+              {
+               "employer_name": "TRIOHM SOFTWARE INDIA PRIVATE LIMITED",
+               "employee_title": "Technical Support and EV Analyst"
+              }
+             ]
+            }
+           },
+           "updated_at": "2026-11-09T04:45:22.169Z"
+          },
+          {
+           "crustdata_person_id": 167341,
+           "basic_profile": {
+            "name": "Ratan Srivastava",
+            "headline": "Founder & CEO at Ksolves India Listed on Stock Exchange (NSE & BSE), CMMI 3 Level"
+           },
+           "social_handles": {
+            "professional_network_identifier": {
+             "profile_url": "https://www.linkedin.com/in/ratan-srivastava-5ab571137"
+            },
+            "twitter_identifier": {
+             "slug": null
+            }
+           },
+           "experience": {
+            "employment_details": {
+             "current": [
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Chief Executive Officer"
+              }
+             ],
+             "past": [
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Founder and CEO"
+              },
+              {
+               "employer_name": "Persistent Systems",
+               "employee_title": "Software Developer"
+              },
+              {
+               "employer_name": "Tech Mahindra",
+               "employee_title": "Senior Software Engineer"
+              },
+              {
+               "employer_name": "Birlasoft",
+               "employee_title": "Senior Software Engineer"
+              }
+             ]
+            }
+           },
+           "updated_at": "2026-11-05T23:47:42.874Z"
+          },
+          {
+           "crustdata_person_id": 1682039,
+           "basic_profile": {
+            "name": "Eric Averitt",
+            "headline": "VP of Sales at Ksolves"
+           },
+           "social_handles": {
+            "professional_network_identifier": {
+             "profile_url": "https://www.linkedin.com/in/eric-averitt"
+            },
+            "twitter_identifier": {
+             "slug": null
+            }
+           },
+           "experience": {
+            "employment_details": {
+             "current": [
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "VP, Head of Global Sales"
+              }
+             ],
+             "past": [
+              {
+               "employer_name": "YASH Technologies",
+               "employee_title": "Business Development Manager"
+              },
+              {
+               "employer_name": "New Era Technology",
+               "employee_title": "Senior Account Executive"
+              },
+              {
+               "employer_name": "Centric Consulting",
+               "employee_title": "Business Development Lead"
+              },
+              {
+               "employer_name": "DeveloperTown",
+               "employee_title": "Business Development Manager"
+              }
+             ]
+            }
+           },
+           "updated_at": "2026-11-05T23:50:19.695Z"
+          },
+          {
+           "crustdata_person_id": 37864018,
+           "basic_profile": {
+            "name": "Shashikant K",
+            "headline": "VP Technology at KSOLVES, BigData Architect, Apache Spark, Apache Cassandra"
+           },
+           "social_handles": {
+            "professional_network_identifier": {
+             "profile_url": "https://www.linkedin.com/in/shashikantatksolves"
+            },
+            "twitter_identifier": {
+             "slug": null
+            }
+           },
+           "experience": {
+            "employment_details": {
+             "current": [
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "VP Technology"
+              }
+             ],
+             "past": [
+              {
+               "employer_name": "Ksolves India Limited",
+               "employee_title": "Enterprise Architect"
+              },
+              {
+               "employer_name": "Vishwagan Infosoft Pvt. Ltd.",
+               "employee_title": "Software Engineer"
+              },
+              {
+               "employer_name": "Geometric Software",
+               "employee_title": "Tech Lead"
+              },
+              {
+               "employer_name": "Tieto",
+               "employee_title": "Senior Software Architect"
+              }
+             ]
+            }
+           },
+           "updated_at": "2026-04-11T16:34:53.974Z"
+          }
+         ]
+        }
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "path": "/job/search",
+   "body": {
+    "filters": {
+     "field": "company.basic_info.crustdata_company_id",
+     "type": "=",
+     "value": 1050058
+    },
+    "aggregations": [
+     {
+      "type": "count"
+     }
+    ],
+    "limit": 0
+   },
+   "response": {
+    "job_listings": [],
+    "count": 0,
+    "total_count": 13,
+    "aggregations": [
+     {
+      "type": "count",
+      "field": null,
+      "value": 13
+     }
+    ]
+   }
+  },
+  {
+   "path": "/web/search/live",
+   "body": {
+    "query": "\"Ksolves India Limited\"",
+    "sources": [
+     "web"
+    ],
+    "location": "IN",
+    "site": "indiankanoon.org"
+   },
+   "response": {
+    "success": true,
+    "results": []
+   }
+  },
+  {
+   "path": "/web/search/live",
+   "body": {
+    "query": "\"Ksolves India Limited\" (fraud OR cheating OR blacklisted OR debarred OR insolvency OR NCLT OR \"winding up\" OR arbitration OR \"high court\" OR FIR OR CBI OR \"enforcement directorate\")",
+    "sources": [
+     "web"
+    ],
+    "location": "IN"
+   },
+   "response": {
+    "success": true,
+    "results": [
+     {
+      "title": "NCLT - Insolvency and Bankruptcy Board of India",
+      "url": "http://13.234.4.32/orders/nclt?page=1548",
+      "snippet": "One must do his own research or read the original text of the Orders/Judgments. The Board or its officers will not be held responsible for any damage or loss or ...",
+      "source": "web"
+     },
+     {
+      "title": "Bar and Bench's Post",
+      "url": "https://www.google.com/goto?url=(redirect)",
+      "snippet": "The National Company Law Tribunal (NCLT) Mumbai has delivered a landmark judgment on 10th December 2025, dismissing the Resolution Professionals ...",
+      "source": "web"
+     },
+     {
+      "title": "Scanned by CamScanner",
+      "url": "https://www.google.com/goto?url=(redirect)",
+      "snippet": "27 Jan 2025 \u2014 FRAUD INVESTIGATION OFFICE (SFIO). VS. KOHINOOR POWER PRIVATE. LIMITED(Under liquidation) through. Liquidator Shri Yogesh Gupta. AJAY CHAUBEY. ( ...",
+      "source": "web"
+     },
+     {
+      "title": "NCLT Rules Out Insolvency as a Barrier to ED Money ...",
+      "url": "https://www.google.com/goto?url=(redirect)",
+      "snippet": "4 Jul 2025 \u2014 The National Company Law Tribunal (NCLT) has upheld the primacy of the Enforcement Directorate in dealing with proceeds of crime linked to money ...",
+      "source": "web"
+     },
+     {
+      "title": "Cause List 2023 PB .xlsx",
+      "url": "https://nclt.gov.in/sites/default/files/pdf_cause_list/Cause%20List%20PB%2011.01.2023.pdf",
+      "snippet": "Following matters are Listed before Principal Bench for hearing through Video ...",
+      "source": "web"
+     }
+    ]
+   }
+  },
+  {
+   "path": "/person/search",
+   "body": {
+    "filters": {
+     "op": "and",
+     "conditions": [
+      {
+       "field": "basic_profile.name",
+       "type": "(.)",
+       "value": "Ratan Srivastava"
+      }
+     ]
+    },
+    "fields": [
+     "basic_profile.name",
+     "basic_profile.headline",
+     "social_handles.professional_network_identifier.profile_url",
+     "experience.employment_details.current.name",
+     "experience.employment_details.current.title",
+     "experience.employment_details.past.name",
+     "experience.employment_details.past.end_date"
+    ],
+    "limit": 10
+   },
+   "response": {
+    "profiles": [
+     {
+      "crustdata_person_id": 157025,
+      "basic_profile": {
+       "name": "Rajan Srivastav",
+       "headline": "CEO & Founder at Heliware"
+      },
+      "social_handles": {
+       "professional_network_identifier": {
+        "profile_url": "https://www.linkedin.com/in/rajansrivastav"
+       }
+      },
+      "experience": {
+       "employment_details": {
+        "current": [
+         {
+          "name": "Heliware",
+          "title": "Founder & CEO"
+         }
+        ],
+        "past": [
+         {
+          "name": "Universe Products and Services Pvt. Ltd. (UPSL)",
+          "end_date": "2018-01-01T00:00:00"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "crustdata_person_id": 167341,
+      "basic_profile": {
+       "name": "Ratan Srivastava",
+       "headline": "Founder & CEO at Ksolves India Listed on Stock Exchange (NSE & BSE), CMMI 3 Level"
+      },
+      "social_handles": {
+       "professional_network_identifier": {
+        "profile_url": "https://www.linkedin.com/in/ratan-srivastava-5ab571137"
+       }
+      },
+      "experience": {
+       "employment_details": {
+        "current": [
+         {
+          "name": "Ksolves India Limited",
+          "title": "Chief Executive Officer"
+         }
+        ],
+        "past": [
+         {
+          "name": "Ksolves India Limited",
+          "end_date": "2023-01-01T00:00:00"
+         },
+         {
+          "name": "Tech Mahindra",
+          "end_date": "2012-11-01T00:00:00"
+         },
+         {
+          "name": "Birlasoft",
+          "end_date": "2008-10-01T00:00:00"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "crustdata_person_id": 1540621,
+      "basic_profile": {
+       "name": "Amulya Ratan Srivastav",
+       "headline": "Site Reliability Engineer"
+      },
+      "social_handles": {
+       "professional_network_identifier": {
+        "profile_url": "https://www.linkedin.com/in/amulya-ratan-srivastav-83468a70"
+       }
+      },
+      "experience": {
+       "employment_details": {
+        "current": [
+         {
+          "name": "Cleverbit Software",
+          "title": "Product Support Engineer"
+         }
+        ],
+        "past": [
+         {
+          "name": "HCLTech",
+          "end_date": "2024-09-01T00:00:00"
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "total_count": 519
+   }
+  },
+  {
+   "path": "/web/search/live",
+   "body": {
+    "query": "\"Ratan Srivastava\" \"ksolves\"",
+    "sources": [
+     "web"
+    ],
+    "location": "IN",
+    "site": "indiankanoon.org"
+   },
+   "response": {
+    "success": true,
+    "results": []
+   }
+  },
+  {
+   "path": "/web/search/live",
+   "body": {
+    "query": "\"Ratan Srivastava\" \"ksolves\" (fraud OR cheating OR blacklisted OR debarred OR insolvency OR NCLT OR \"winding up\" OR arbitration OR \"high court\" OR FIR OR CBI OR \"enforcement directorate\")",
+    "sources": [
+     "web"
+    ],
+    "location": "IN"
+   },
+   "response": {
+    "success": true,
+    "results": []
+   }
+  },
+  {
+   "path": "/person/search",
+   "body": {
+    "filters": {
+     "op": "and",
+     "conditions": [
+      {
+       "field": "basic_profile.name",
+       "type": "(.)",
+       "value": "Manish Gurnani"
+      }
+     ]
+    },
+    "fields": [
+     "basic_profile.name",
+     "basic_profile.headline",
+     "social_handles.professional_network_identifier.profile_url",
+     "experience.employment_details.current.name",
+     "experience.employment_details.current.title",
+     "experience.employment_details.past.name",
+     "experience.employment_details.past.end_date"
+    ],
+    "limit": 10
+   },
+   "response": {
+    "profiles": [
+     {
+      "crustdata_person_id": 376774,
+      "basic_profile": {
+       "name": "Manish Gurnani",
+       "headline": "Chief Technology Officer (CTO) at Ksolves India Limited"
+      },
+      "social_handles": {
+       "professional_network_identifier": {
+        "profile_url": "https://www.linkedin.com/in/gurnanim"
+       }
+      },
+      "experience": {
+       "employment_details": {
+        "current": [
+         {
+          "name": "Ksolves India Limited",
+          "title": "Chief Technology Officer"
+         }
+        ],
+        "past": [
+         {
+          "name": "Ksolves India Limited",
+          "end_date": "2021-06-01T00:00:00"
+         },
+         {
+          "name": "NexGen Tech Solutions",
+          "end_date": "2020-01-01T00:00:00"
+         },
+         {
+          "name": "Bank of America",
+          "end_date": "2015-03-01T00:00:00"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "crustdata_person_id": 1282083,
+      "basic_profile": {
+       "name": "Manish Gurbani",
+       "headline": "Cybersecurity Executive"
+      },
+      "social_handles": {
+       "professional_network_identifier": {
+        "profile_url": "https://www.linkedin.com/in/manish-gurbani"
+       }
+      },
+      "experience": {
+       "employment_details": {
+        "current": [
+         {
+          "name": "Inspira Enterprise",
+          "title": "Vice President - Clients & Industries"
+         }
+        ],
+        "past": [
+         {
+          "name": "Bank of America",
+          "end_date": "2022-09-01T00:00:00"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "crustdata_person_id": 16984714,
+      "basic_profile": {
+       "name": "Gurnani Manish",
+       "headline": "NOC Manager at Ericsson"
+      },
+      "social_handles": {
+       "professional_network_identifier": {
+        "profile_url": "https://www.linkedin.com/in/gurnani-manish-4212552a"
+       }
+      },
+      "experience": {
+       "employment_details": {
+        "current": [
+         {
+          "name": "Ericsson",
+          "title": "NOC Manager"
+         }
+        ],
+        "past": [
+         {
+          "name": "Nokia",
+          "end_date": "2013-05-01T00:00:00"
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "total_count": 85
+   }
+  },
+  {
+   "path": "/web/search/live",
+   "body": {
+    "query": "\"Manish Gurnani\" \"ksolves\"",
+    "sources": [
+     "web"
+    ],
+    "location": "IN",
+    "site": "indiankanoon.org"
+   },
+   "response": {
+    "success": true,
+    "results": [
+     {
+      "title": "Ksolves India Limited's Post",
+      "url": "https://www.google.com/goto?url=(redirect)",
+      "snippet": "Ksolves India Limited has been honored with the 2024 Deloitte ... Our very own Manish Gurnani (CTO) and Kirti Sharma (Business ...",
+      "source": "web"
+     },
+     {
+      "title": "Meet Us At the Agentforce World Tour Sydney 2026",
+      "url": "https://www.ksolves.com/events/agentforce-world-tour",
+      "snippet": "Manish Gurnani. Manish. Chief Technology Officer. Kirti Sharma. Kirti Sharma. Business Development Head.",
+      "source": "web"
+     },
+     {
+      "title": "Ksolves TechCast - Podcast",
+      "url": "https://www.google.com/goto?url=(redirect)",
+      "snippet": "This exciting episode of the Ksolves Techcast describes our recent presence in the Global AI Show Dubai as the Platinum sponsor. Our CTO, Mr. Manish Gurnani ...",
+      "source": "web"
+     }
+    ]
+   }
+  },
+  {
+   "path": "/web/search/live",
+   "body": {
+    "query": "\"Manish Gurnani\" \"ksolves\" (fraud OR cheating OR blacklisted OR debarred OR insolvency OR NCLT OR \"winding up\" OR arbitration OR \"high court\" OR FIR OR CBI OR \"enforcement directorate\")",
+    "sources": [
+     "web"
+    ],
+    "location": "IN"
+   },
+   "response": {
+    "success": true,
+    "results": []
+   }
+  },
+  {
+   "path": "/person/search",
+   "body": {
+    "filters": {
+     "op": "and",
+     "conditions": [
+      {
+       "field": "basic_profile.name",
+       "type": "(.)",
+       "value": "Arjun Malhotra"
+      }
+     ]
+    },
+    "fields": [
+     "basic_profile.name",
+     "basic_profile.headline",
+     "social_handles.professional_network_identifier.profile_url",
+     "experience.employment_details.current.name",
+     "experience.employment_details.current.title",
+     "experience.employment_details.past.name",
+     "experience.employment_details.past.end_date"
+    ],
+    "limit": 10
+   },
+   "response": {
+    "profiles": [
+     {
+      "crustdata_person_id": 1075062,
+      "basic_profile": {
+       "name": "Arjun Malhotra",
+       "headline": "Chairman Magic Software"
+      },
+      "social_handles": {
+       "professional_network_identifier": {
+        "profile_url": "https://www.linkedin.com/in/arjun-malhotra-5b07005"
+       }
+      },
+      "experience": {
+       "employment_details": {
+        "current": [
+         {
+          "name": "Magic Software Inc.",
+          "title": "Chairman"
+         },
+         {
+          "name": "DMI Finance Private Limited",
+          "title": "Director"
+         }
+        ],
+        "past": [
+         {
+          "name": "Genpact Headstrong Capital Markets",
+          "end_date": "2011-12-01T00:00:00"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "crustdata_person_id": 1412766,
+      "basic_profile": {
+       "name": "Arjun Malhotra",
+       "headline": "Partner at KPMG India"
+      },
+      "social_handles": {
+       "professional_network_identifier": {
+        "profile_url": "https://www.linkedin.com/in/arjun-malhotra-28a6b316"
+       }
+      },
+      "experience": {
+       "employment_details": {
+        "current": [
+         {
+          "name": "KPMG India",
+          "title": "Partner"
+         }
+        ],
+        "past": [
+         {
+          "name": "Grail Research",
+          "end_date": "2011-04-01T00:00:00"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "crustdata_person_id": 4424372,
+      "basic_profile": {
+       "name": "Arjun Malhotra",
+       "headline": "Business Associate at Tara Applications"
+      },
+      "social_handles": {
+       "professional_network_identifier": {
+        "profile_url": "https://www.linkedin.com/in/arjun-malhotra-7548a28a"
+       }
+      },
+      "experience": {
+       "employment_details": {
+        "current": [
+         {
+          "name": "Tara Applications",
+          "title": "Business Associate"
+         },
+         {
+          "name": "Infosys",
+          "title": "Software Development Consultant"
+         }
+        ],
+        "past": [
+         {
+          "name": "Dikonia",
+          "end_date": "2022-08-01T00:00:00"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "crustdata_person_id": 5420783,
+      "basic_profile": {
+       "name": "Arjun Malhotra",
+       "headline": "Solutions Delivery Analyst at Wipro"
+      },
+      "social_handles": {
+       "professional_network_identifier": {
+        "profile_url": "https://www.linkedin.com/in/arjun-malhotra-36b92a20b"
+       }
+      },
+      "experience": {
+       "employment_details": {
+        "current": [
+         {
+          "name": "Wipro",
+          "title": "Solution delivery analyst"
+         }
+        ],
+        "past": []
+       }
+      }
+     }
+    ],
+    "total_count": 150
+   }
+  },
+  {
+   "path": "/web/search/live",
+   "body": {
+    "query": "\"Arjun Malhotra\" \"ksolves\"",
+    "sources": [
+     "web"
+    ],
+    "location": "IN",
+    "site": "indiankanoon.org"
+   },
+   "response": {
+    "success": true,
+    "results": [
+     {
+      "title": "Arjun Malhotra - Chairman @ Magic Edtech",
+      "url": "https://www.google.com/goto?url=(redirect)",
+      "snippet": "A pioneer of the Indian IT industry, Arjun has over 42 years of experience in the Technology and IT space with both private and public companies.",
+      "source": "web"
+     },
+     {
+      "title": "Arjun Malhotra | Investor Profile",
+      "url": "https://www.evalyze.ai/investors/arjun-malhotra",
+      "snippet": "About Investor. Arjun Malhotra is an entrepreneur, operator, and angel investor with experience supporting and building technology-driven businesses.",
+      "source": "web"
+     }
+    ]
+   }
+  },
+  {
+   "path": "/web/search/live",
+   "body": {
+    "query": "\"Arjun Malhotra\" \"ksolves\" (fraud OR cheating OR blacklisted OR debarred OR insolvency OR NCLT OR \"winding up\" OR arbitration OR \"high court\" OR FIR OR CBI OR \"enforcement directorate\")",
+    "sources": [
+     "web"
+    ],
+    "location": "IN"
+   },
+   "response": {
+    "success": true,
+    "results": [
+     {
+      "title": "Causelist as on 01.01.2026.xlsx",
+      "url": "https://nclt.gov.in/sites/default/files/pdf_cause_list/Cause-List%20Court-V%2006.01.2026.pdf",
+      "snippet": "1 Jan 2026 \u2014 Parties/Counsels appearing physically should record their attendeance in the Register maintained in the Court for the purpose.",
+      "source": "web"
+     },
+     {
+      "title": "Hearing Through : VC and Physical (Hybrid) Mode",
+      "url": "https://www.google.com/goto?url=(redirect)",
+      "snippet": "29 Apr 2024 \u2014 Note : Hybrid mode in the present context means court assisted hybrid hearings in case one party is physically present and the other party is ...",
+      "source": "web"
+     }
+    ]
+   }
+  }
+ ]
+}

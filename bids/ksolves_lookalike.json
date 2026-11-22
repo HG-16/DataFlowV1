@@ -1,0 +1,11 @@
+{
+  "vendor_name": "Ksolves India Limited",
+  "domain": "ksolves.co",
+  "claimed_headcount": 2500,
+  "claimed_year_founded": 2005,
+  "key_personnel": [
+    {"name": "Ratan Srivastava", "title": "Founder & CEO"},
+    {"name": "Arjun Malhotra", "title": "Project Director"}
+  ],
+  "tender": {"id": "DEMO", "title": "Smart City command centre", "value_inr": 900000000}
+}

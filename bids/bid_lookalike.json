@@ -1,0 +1,16 @@
+{
+  "vendor_name": "Nimbus Cloudworks Private Limited",
+  "domain": "nimbuscloudwork.in",
+  "claimed_headcount": 300,
+  "claimed_year_founded": 2012,
+  "claimed_turnover_inr": 900000000,
+  "gstin": "07AAFFR5678K1ZL",
+  "pan": "AABCN1234F",
+  "state": "Karnataka",
+  "entity_type": "private limited",
+  "key_personnel": [
+    {"name": "Asha Raman", "title": "Project Director"},
+    {"name": "Rohit Khanna", "title": "Delivery Head"}
+  ],
+  "tender": {"id": "GEM/2026/B/0000002", "title": "Smart City command centre", "value_inr": 350000000}
+}

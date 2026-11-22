@@ -1,0 +1,19 @@
+{
+  "vendor_name": "Nimbus Cloudworks Private Limited",
+  "domain": "nimbuscloudworks.in",
+  "claimed_headcount": 220,
+  "claimed_year_founded": 2016,
+  "claimed_turnover_inr": 450000000,
+  "gstin": "29AABCN1234F1ZS",
+  "pan": "AABCN1234F",
+  "state": "Karnataka",
+  "entity_type": "private limited",
+  "gstr3b_filed_last_12": 12,
+  "gst_registration_date": "2017-07-01",
+  "declared_pending_cases": 0,
+  "key_personnel": [
+    {"name": "Asha Raman", "title": "Project Director"},
+    {"name": "Vikram Sethi", "title": "Solution Architect"}
+  ],
+  "tender": {"id": "GEM/2026/B/0000001", "title": "State e-Office rollout", "value_inr": 120000000}
+}

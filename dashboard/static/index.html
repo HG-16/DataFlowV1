@@ -1,0 +1,871 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GeM Vendor Verification</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f4f5f7; --surface: #ffffff; --surface-2: #f8f9fb; --line: #e2e4e9; --line-strong: #c9ccd3;
+  --ink: #12151c; --ink-2: #4b5160; --muted: #7d8391;
+  --brand: #1d3f8f; --brand-ink: #ffffff; --brand-soft: #e7edfa; --accent: #e07b1a;
+  --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b; --neutral: #a9adb6;
+  --good-text: #006300; --critical-text: #b42c2c; --warning-text: #8a5a00;
+  --good-bg: #e8f6e8; --warning-bg: #fff5dc; --critical-bg: #fdecec; --info-bg: #eaf1fd;
+  --shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+  --radius: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0f1115; --surface: #181b21; --surface-2: #1e222a; --line: #2a2f39; --line-strong: #3a404c;
+    --ink: #eef0f4; --ink-2: #b9bfcc; --muted: #8a909c;
+    --brand: #6f97f0; --brand-ink: #0b1020; --brand-soft: #1d2740; --accent: #f0a050;
+    --neutral: #5b606b; --good-text: #3ec43e; --critical-text: #f07c7c; --warning-text: #f5c451;
+    --good-bg: #15291a; --warning-bg: #2d2410; --critical-bg: #331a1a; --info-bg: #17223a;
+    --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0f1115; --surface: #181b21; --surface-2: #1e222a; --line: #2a2f39; --line-strong: #3a404c;
+  --ink: #eef0f4; --ink-2: #b9bfcc; --muted: #8a909c;
+  --brand: #6f97f0; --brand-ink: #0b1020; --brand-soft: #1d2740; --accent: #f0a050;
+  --neutral: #5b606b; --good-text: #3ec43e; --critical-text: #f07c7c; --warning-text: #f5c451;
+  --good-bg: #15291a; --warning-bg: #2d2410; --critical-bg: #331a1a; --info-bg: #17223a;
+  --shadow: none;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+button, input, select, textarea { font: inherit; color: inherit; }
+a { color: var(--brand); }
+.top { background: var(--surface); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 10; }
+@media (max-height: 640px) { .top { position: static; } }
+.top-inner { max-width: 1280px; margin: 0 auto; padding: 0 16px; display: flex; align-items: center; gap: 16px; min-height: 60px; flex-wrap: wrap; }
+.tricolor { width: 6px; height: 34px; border-radius: 3px; background: linear-gradient(#ff9933 0 33%, #ffffff 33% 66%, #138808 66%); border: 1px solid var(--line); }
+.brand h1 { font-size: 16px; margin: 0; letter-spacing: .1px; }
+.brand p { margin: 0; color: var(--muted); font-size: 12px; }
+nav { display: flex; gap: 2px; margin-left: auto; flex-wrap: wrap; }
+nav button { background: none; border: 0; padding: 8px 12px; border-radius: 8px; cursor: pointer; color: var(--ink-2); font-weight: 500; }
+nav button:hover { background: var(--surface-2); }
+nav button.on { background: var(--brand-soft); color: var(--brand); }
+.theme { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+main { max-width: 1280px; margin: 0 auto; padding: 20px 16px 60px; }
+.view { display: none; } .view.on { display: block; }
+h2 { font-size: 20px; margin: 0 0 4px; } .sub { color: var(--muted); margin: 0 0 18px; }
+h3 { font-size: 14px; margin: 0 0 12px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; }
+.grid { display: grid; gap: 16px; }
+.kpis { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin-bottom: 16px; }
+.kpi .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
+.kpi .value { font-size: 28px; font-weight: 650; margin-top: 2px; }
+.kpi .note { color: var(--ink-2); font-size: 12px; }
+.two { grid-template-columns: 1.4fr 1fr; } .two.eq { grid-template-columns: 1fr 1fr; }
+.grid > * { min-width: 0; }
+@media (max-width: 900px) { .two, .two.eq { grid-template-columns: 1fr; } }
+.btn { border: 1px solid var(--line-strong); background: var(--surface); border-radius: 8px; padding: 7px 12px; cursor: pointer; font-weight: 500; white-space: nowrap; }
+.btn:hover { background: var(--surface-2); }
+.btn.primary { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.danger { color: var(--critical-text); }
+.btn:disabled { opacity: .55; cursor: progress; }
+.btn.sm { padding: 4px 9px; font-size: 13px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.spacer { flex: 1; }
+input[type=text], input[type=search], select, textarea { background: var(--surface); border: 1px solid var(--line-strong); border-radius: 8px; padding: 8px 10px; min-width: 0; }
+input:focus, select:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .3px; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr.click { cursor: pointer; } tr.click:hover td { background: var(--surface-2); }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.mono { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 13px; }
+.muted { color: var(--muted); } .small { font-size: 12px; }
+.table-wrap { overflow-x: auto; }
+.badge { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; border: 1px solid transparent; }
+.badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.b-APPROVE, .b-active, .b-confirmed { background: var(--good-bg); color: var(--good-text); }
+.b-HOLD, .b-cant_verify, .b-warning { background: var(--warning-bg); color: var(--warning-text); }
+.b-REJECT, .b-cancelled, .b-suspended, .b-inactive, .b-red_flag, .b-contradicted, .b-critical { background: var(--critical-bg); color: var(--critical-text); }
+.b-UNCHECKED, .b-unknown, .b-info { background: var(--surface-2); color: var(--ink-2); border-color: var(--line); }
+.icon-ok::before { content: "✓"; background: none; width: auto; height: auto; }
+/* charts */
+.stack { display: flex; height: 26px; gap: 2px; border-radius: 4px; overflow: hidden; }
+.stack > div { min-width: 3px; position: relative; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; color: var(--ink-2); font-size: 12px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.bars .bar-row { display: grid; grid-template-columns: 150px 1fr 34px; gap: 10px; align-items: center; padding: 4px 0; }
+.bars .bar-row .name { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.bars .track { display: flex; gap: 2px; height: 14px; }
+.bars .track > div { border-radius: 0; min-width: 3px; }
+.bars .track > div:last-child { border-radius: 0 4px 4px 0; }
+.seg-APPROVE { background: var(--good); } .seg-HOLD { background: var(--warning); } .seg-REJECT { background: var(--critical); } .seg-UNCHECKED { background: var(--neutral); }
+#tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--surface); padding: 6px 9px; border-radius: 6px; font-size: 12px; display: none; z-index: 50; max-width: 260px; }
+.alert { display: flex; gap: 10px; padding: 9px 12px; border-radius: 8px; margin-bottom: 8px; align-items: flex-start; }
+.alert .ic { font-weight: 700; width: 16px; flex: none; text-align: center; }
+.alert.critical { background: var(--critical-bg); color: var(--critical-text); }
+.alert.warning { background: var(--warning-bg); color: var(--warning-text); }
+.alert.info { background: var(--info-bg); color: var(--ink-2); }
+.alert.ok { background: var(--good-bg); color: var(--good-text); }
+/* GSTIN search */
+.search-hero { display: flex; gap: 10px; flex-wrap: wrap; }
+.search-hero input { flex: 1 1 280px; font-size: 18px; padding: 12px 14px; letter-spacing: 1.5px; text-transform: uppercase; font-family: ui-monospace, Consolas, monospace; }
+.gst-anatomy { display: flex; gap: 3px; flex-wrap: wrap; margin: 14px 0 4px; }
+.gst-anatomy .part { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; background: var(--surface-2); }
+.gst-anatomy .part b { display: block; font-family: ui-monospace, Consolas, monospace; font-size: 17px; letter-spacing: 1px; }
+.gst-anatomy .part small { color: var(--muted); font-size: 11px; }
+.gst-anatomy .part.bad { border-color: var(--critical); background: var(--critical-bg); }
+dl.kv { display: grid; grid-template-columns: 170px 1fr; gap: 6px 14px; margin: 0; }
+dl.kv dt { color: var(--muted); } dl.kv dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 560px) { dl.kv { grid-template-columns: 1fr; } dl.kv dd { margin-bottom: 6px; } .bars .bar-row { grid-template-columns: 100px 1fr 30px; } }
+/* upload */
+.drop { display: block; border: 2px dashed var(--line-strong); border-radius: var(--radius); padding: 26px 16px; text-align: center; cursor: pointer; background: var(--surface-2); transition: .15s; }
+.drop:hover, .drop.over { border-color: var(--brand); background: var(--brand-soft); }
+.drop strong { display: block; font-size: 15px; margin-bottom: 4px; }
+.preview { max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; margin-top: 12px; }
+.preview table td, .preview table th { font-size: 12px; padding: 5px 8px; white-space: nowrap; }
+/* drawer */
+.drawer-bg { position: fixed; inset: 0; background: rgba(10,14,22,.45); display: none; z-index: 30; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(760px, 100vw); background: var(--page); z-index: 31; overflow-y: auto; transform: translateX(100%); transition: transform .2s; border-left: 1px solid var(--line); }
+.drawer.on { transform: none; } .drawer-bg.on { display: block; }
+.drawer header { position: sticky; top: 0; background: var(--surface); border-bottom: 1px solid var(--line); padding: 14px 16px; display: flex; gap: 10px; align-items: flex-start; z-index: 2; }
+.drawer .body { padding: 16px; display: grid; gap: 14px; grid-template-columns: minmax(0, 1fr); }
+.drawer { overflow-x: hidden; } .alert > div { min-width: 0; overflow-wrap: anywhere; }
+.score-ring { width: 76px; height: 76px; flex: none; }
+.cat-row { display: grid; grid-template-columns: 120px 1fr 44px; gap: 10px; align-items: center; padding: 3px 0; font-size: 13px; }
+.cat-track { height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; border: 1px solid var(--line); }
+.cat-track > div { height: 100%; background: var(--brand); border-radius: 0 4px 4px 0; }
+.finding { border-left: 3px solid var(--line-strong); padding: 6px 10px; margin: 6px 0; background: var(--surface); border-radius: 0 6px 6px 0; }
+.finding.confirmed { border-color: var(--good); } .finding.red_flag, .finding.contradicted { border-color: var(--critical); } .finding.cant_verify { border-color: var(--warning); }
+.finding .src { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.ko { background: var(--critical); color: #fff; font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-left: 6px; }
+.toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--surface); padding: 10px 16px; border-radius: 8px; z-index: 60; display: none; max-width: calc(100vw - 32px); }
+.empty { text-align: center; padding: 30px 10px; color: var(--muted); }
+.pill-src { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 4px; background: var(--surface-2); border: 1px solid var(--line); color: var(--ink-2); }
+details summary { cursor: pointer; color: var(--ink-2); }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.form-grid label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+/* verification report */
+.verify { margin-top: 12px; display: grid; gap: 10px; }
+.vsum { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.vtable td { white-space: normal !important; vertical-align: top; }
+.vtable .iss { margin: 0; padding: 0; list-style: none; font-size: 12px; }
+.vtable .iss li { padding: 1px 0; } .vtable .iss .error { color: var(--critical-text); } .vtable .iss .warning { color: var(--warning-text); } .vtable .iss .info { color: var(--muted); }
+.b-ok { background: var(--good-bg); color: var(--good-text); } .b-error { background: var(--critical-bg); color: var(--critical-text); }
+.seg-tabs { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; }
+.seg-tabs button { border: 0; background: var(--surface); padding: 7px 12px; cursor: pointer; }
+.seg-tabs button.on { background: var(--brand); color: var(--brand-ink); }
+.src-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.src-row:last-child { border-bottom: 0; }
+@media (max-width: 640px) { .src-row { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="top"><div class="top-inner">
+  <div class="tricolor" aria-hidden="true"></div>
+  <div class="brand"><h1>GeM Vendor Verification</h1><p>Procurement integrity desk · GSTIN-based bid checks</p></div>
+  <nav id="nav">
+    <button data-v="overview" class="on">Overview</button>
+    <button data-v="lookup">GSTIN Lookup</button>
+    <button data-v="vendors">Vendors</button>
+    <button data-v="upload">Upload Data</button>
+    <button data-v="databases">Databases</button>
+    <button data-v="registry">GST Registry</button>
+  </nav>
+  <button class="theme" id="themeBtn" title="Toggle theme">◐</button>
+</div></div>
+
+<main>
+<!-- OVERVIEW -->
+<section class="view on" id="v-overview">
+  <div class="row" style="margin-bottom:14px">
+    <div><h2>Overview</h2><p class="sub" style="margin:0">Latest verdict for every bidder on record.</p></div>
+    <div class="spacer"></div>
+    <button class="btn" id="seedBtn">Load demo data</button>
+    <button class="btn primary" id="checkAllBtn">Run checks on all vendors</button>
+  </div>
+  <div id="modeBanner"></div>
+  <div class="grid kpis" id="kpis"></div>
+  <div class="grid two">
+    <div class="grid">
+      <div class="card"><h3>Verdicts</h3><div id="verdictChart"></div></div>
+      <div class="card"><h3>Bidders by state of GST registration</h3><div id="stateChart" class="bars"></div></div>
+    </div>
+    <div class="grid">
+      <div class="card"><h3>Knockout alerts</h3><div id="alerts"></div></div>
+      <div class="card"><h3>Recent checks</h3><div id="recent"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- LOOKUP -->
+<section class="view" id="v-lookup">
+  <h2>GSTIN Lookup</h2>
+  <p class="sub">Enter a GSTIN. The system validates it, decodes it, searches the uploaded registry and any configured GST API automatically, and pulls up every bid filed under it.</p>
+  <div class="card">
+    <form class="search-hero" id="lookupForm">
+      <input type="text" id="gstinInput" maxlength="20" placeholder="29AABCN1234F1ZS" autocomplete="off" spellcheck="false" aria-label="GSTIN">
+      <button class="btn primary" type="submit">Search</button>
+      <button class="btn" type="button" id="refreshLookup" title="Bypass the registry cache and query the APIs again">Re-query APIs</button>
+    </form>
+    <div id="liveDecode" class="small muted" style="margin-top:8px">15 characters: state code · PAN · entity no. · Z · check digit</div>
+  </div>
+  <div id="lookupResult" style="margin-top:16px"></div>
+</section>
+
+<!-- VENDORS -->
+<section class="view" id="v-vendors">
+  <div class="row" style="margin-bottom:14px">
+    <div><h2>Vendors</h2><p class="sub" style="margin:0">All bidders loaded from uploads, bids/ files or manual entry.</p></div>
+    <div class="spacer"></div>
+    <a class="btn" href="/api/export.csv">Export CSV</a>
+    <button class="btn" id="addVendorBtn">Add vendor</button>
+  </div>
+  <div class="card">
+    <div class="row" style="margin-bottom:10px">
+      <input type="search" id="vq" placeholder="Search name, GSTIN, tender…" style="flex:1 1 240px">
+      <select id="vverdict"><option value="">All verdicts</option><option>REJECT</option><option>HOLD</option><option>APPROVE</option><option>UNCHECKED</option></select>
+      <button class="btn" id="checkUnchecked">Check unchecked</button>
+    </div>
+    <form id="addVendorForm" class="card" style="display:none;margin-bottom:12px;background:var(--surface-2)">
+      <h3>Add a vendor</h3>
+      <p class="small muted" style="margin-top:-6px">Only the GSTIN is required: the legal name is filled from the registry / API lookup.</p>
+      <div class="form-grid">
+        <label>GSTIN<input type="text" name="gstin" class="mono" required></label>
+        <label>Vendor name (as in bid)<input type="text" name="vendor_name"></label>
+        <label>Website domain<input type="text" name="domain" placeholder="example.in"></label>
+        <label>Declared PAN<input type="text" name="pan"></label>
+        <label>Declared state<input type="text" name="state"></label>
+        <label>Entity type<select name="entity_type"><option value=""></option><option>private limited</option><option>public limited</option><option>llp</option><option>partnership</option><option>proprietorship</option></select></label>
+        <label>Claimed headcount<input type="text" name="claimed_headcount"></label>
+        <label>Tender ID<input type="text" name="tender_id"></label>
+        <label>Tender value (₹)<input type="text" name="tender_value_inr"></label>
+        <label>Key personnel (Name|Title; …)<input type="text" name="key_personnel"></label>
+      </div>
+      <div id="vendIssues"></div>
+      <div class="row" style="margin-top:12px"><button class="btn primary">Save and check</button><button class="btn" type="button" id="cancelAdd">Cancel</button></div>
+    </form>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Vendor</th><th>GSTIN</th><th>State</th><th>Tender</th><th class="num">Value</th><th>GST status</th><th>Verdict</th><th class="num">Score</th><th></th></tr></thead>
+      <tbody id="vbody"></tbody>
+    </table></div>
+  </div>
+</section>
+
+<!-- UPLOAD -->
+<section class="view" id="v-upload">
+  <h2>Upload data</h2>
+  <p class="sub">Load records by hand when there's no API access. CSV, Excel (.xlsx) and JSON are accepted; column names are matched loosely (e.g. "GST No", "GSTN" and "gstin" all work). Every row is verified first; rows with errors are never imported. Existing rows are updated by GSTIN.</p>
+  <div class="grid two eq">
+    <div class="card">
+      <h3>1 · Vendor / bid database</h3>
+      <p class="small muted" style="margin-top:-6px">One row per bid: vendor name, GSTIN, domain, claims, tender. <a href="/api/template/vendors.csv">Download template</a></p>
+      <label class="drop" data-kind="vendors"><input type="file" accept=".csv,.json,.xlsx,.xls" hidden><strong>Drop a file or click to choose</strong><span class="small muted">vendors.csv · bids.xlsx · bid.json</span></label>
+      <div class="up-preview"></div>
+    </div>
+    <div class="card">
+      <h3>2 · GST registry</h3>
+      <p class="small muted" style="margin-top:-6px">Official taxpayer data from the GST portal / GSTN export: legal name, status, registration date, GSTR-3B filings. Used as the source of truth in checks. <a href="/api/template/registry.csv">Download template</a></p>
+      <label class="drop" data-kind="registry"><input type="file" accept=".csv,.json,.xlsx,.xls" hidden><strong>Drop a file or click to choose</strong><span class="small muted">gst_registry.csv · GSTN API JSON (lgnm, sts, rgdt…)</span></label>
+      <div class="up-preview"></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h3>Upload history</h3>
+    <div class="table-wrap"><table><thead><tr><th>When</th><th>Type</th><th>File</th><th class="num">Rows</th><th class="num">New</th><th class="num">Updated</th><th class="num">Skipped</th></tr></thead><tbody id="ubody"></tbody></table></div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h3>Automatic sources</h3>
+    <div id="sources"></div>
+  </div>
+</section>
+
+<!-- DATABASES -->
+<section class="view" id="v-databases">
+  <h2>Databases</h2>
+  <p class="sub">Connect a department database and import from it after verification, then re-sync whenever it changes. You can also back up or restore the whole dashboard database.</p>
+  <div class="grid two eq">
+    <form class="card" id="srcForm">
+      <h3>Add a database</h3>
+      <div class="seg-tabs" role="tablist" style="margin-bottom:12px">
+        <button type="button" data-t="sqlite" class="on">Database file</button>
+        <button type="button" data-t="url">Online link</button>
+      </div>
+      <div class="form-grid" style="grid-template-columns:1fr">
+        <label>Name<input type="text" name="name" placeholder="e.g. State GST master 2026" required></label>
+        <label>It contains<select name="kind"><option value="vendors">Vendor / bid records</option><option value="registry">GST registry (taxpayer records)</option></select></label>
+        <label class="t-sqlite">SQLite database file (.db, .sqlite, .sqlite3)<input type="file" name="file" accept=".db,.sqlite,.sqlite3,.db3"></label>
+        <label class="t-url" style="display:none">Link to a CSV or JSON file / API<input type="text" name="url" placeholder="https://data.gov.in/…/gst.csv"></label>
+      </div>
+      <p class="small muted t-sqlite">For MySQL, PostgreSQL, Oracle or Excel, export the table to CSV and use <b>Upload Data</b>, or publish it as a CSV/JSON link.</p>
+      <p class="small muted t-url" style="display:none">The link is fetched by the server each time you sync. Up to 25 MB.</p>
+      <button class="btn primary">Connect</button>
+    </form>
+    <div class="card">
+      <h3>Backup &amp; restore</h3>
+      <p class="small muted" style="margin-top:-6px">Download everything (vendors, GST registry, checks, sign-offs, connected databases) as one file, or upload a backup to replace the current data.</p>
+      <div class="row"><a class="btn" href="/api/db/backup">Download backup</a></div>
+      <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+      <label class="drop" id="restoreDrop"><input type="file" accept=".db,.sqlite,.sqlite3" hidden><strong>Upload a backup to restore</strong><span class="small muted">.db file downloaded from this page</span></label>
+      <div id="restoreOut"></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h3>Connected databases</h3>
+    <div id="srcList"></div>
+  </div>
+  <div id="srcVerify" class="card" style="margin-top:16px;display:none"></div>
+</section>
+
+<!-- REGISTRY -->
+<section class="view" id="v-registry">
+  <div class="row" style="margin-bottom:14px">
+    <div><h2>GST registry</h2><p class="sub" style="margin:0">Every GSTIN the desk knows about, from uploads, connected databases, manual entry and automatic lookups.</p></div>
+    <div class="spacer"></div>
+    <button class="btn" id="addRegBtn">Add record manually</button>
+  </div>
+  <form id="regForm" class="card" style="display:none;margin-bottom:16px">
+    <h3>Add or correct a GST registry record</h3>
+    <p class="small muted" style="margin-top:-6px">For example, copied from services.gst.gov.in. An existing GSTIN is updated. The record is verified before it's saved.</p>
+    <div class="form-grid">
+      <label>GSTIN<input type="text" name="gstin" class="mono" maxlength="15" required></label>
+      <label>Legal name<input type="text" name="legal_name"></label>
+      <label>Trade name<input type="text" name="trade_name"></label>
+      <label>Status<select name="status"><option>Active</option><option>Cancelled</option><option>Suspended</option><option>Inactive</option><option>Provisional</option></select></label>
+      <label>Date of registration<input type="date" name="registration_date"></label>
+      <label>GSTR-3B filed in last 12 months<input type="number" name="gstr3b_filed_last_12" min="0" max="12"></label>
+      <label>Constitution<input type="text" name="constitution" placeholder="Private Limited Company"></label>
+      <label>Address<input type="text" name="address"></label>
+    </div>
+    <div id="regIssues"></div>
+    <div class="row" style="margin-top:12px"><button class="btn" type="button" id="regVerify">Verify</button><button class="btn primary">Save record</button><button class="btn" type="button" id="regCancel">Cancel</button></div>
+  </form>
+  <div class="card">
+    <div class="row" style="margin-bottom:10px"><input type="search" id="rq" placeholder="Search GSTIN or name…" style="flex:1 1 240px"></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>GSTIN</th><th>Legal name</th><th>Trade name</th><th>Status</th><th>Registered</th><th class="num">GSTR-3B /12</th><th>Source</th></tr></thead>
+      <tbody id="rbody"></tbody>
+    </table></div>
+  </div>
+</section>
+</main>
+
+<div class="drawer-bg" id="drawerBg"></div>
+<aside class="drawer" id="drawer" aria-label="Vendor detail"></aside>
+<div id="tip"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const inr = v => { v = Number(v) || 0; return v >= 1e7 ? `₹${(v/1e7).toFixed(v >= 1e9 ? 0 : 1)} cr` : v >= 1e5 ? `₹${(v/1e5).toFixed(1)} L` : `₹${v.toLocaleString("en-IN")}`; };
+const when = s => s ? new Date(s).toLocaleString("en-IN", {day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"}) : "";
+const VERDICTS = ["REJECT", "HOLD", "APPROVE", "UNCHECKED"];
+const VLABEL = {APPROVE: "Approve", HOLD: "Hold", REJECT: "Reject", UNCHECKED: "Not checked"};
+const badge = (v, label) => `<span class="badge b-${esc(v || "unknown")}">${esc(label ?? VLABEL[v] ?? v ?? "unknown")}</span>`;
+const STATUS_LABEL = {confirmed: "Confirmed", contradicted: "Contradicted", cant_verify: "Can't verify", red_flag: "Red flag"};
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, {headers: opts.body && typeof opts.body === "string" && !opts.raw ? {"content-type": "application/json"} : opts.headers, ...opts});
+  const d = r.headers.get("content-type")?.includes("json") ? await r.json() : await r.text();
+  if (!r.ok) throw new Error(d.error || r.statusText);
+  return d;
+}
+function toast(msg, ms = 3200) { const t = $("#toast"); t.textContent = msg; t.style.display = "block"; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", ms); }
+async function busy(btn, fn) { const old = btn.textContent; btn.disabled = true; btn.textContent = "Working…"; try { return await fn(); } catch (e) { toast("Error: " + e.message, 5000); } finally { btn.disabled = false; btn.textContent = old; } }
+
+// theme
+(function () {
+  let t = null; try { t = localStorage.getItem("theme"); } catch (e) {}
+  if (t) document.documentElement.dataset.theme = t;
+  $("#themeBtn").onclick = () => {
+    const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    document.documentElement.dataset.theme = dark ? "light" : "dark";
+    try { localStorage.setItem("theme", document.documentElement.dataset.theme); } catch (e) {}
+  };
+})();
+
+// tooltips
+const tip = $("#tip");
+document.addEventListener("mousemove", e => {
+  const el = e.target.closest("[data-tip]");
+  if (!el) { tip.style.display = "none"; return; }
+  tip.innerHTML = el.dataset.tip; tip.style.display = "block";
+  const x = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8);
+  tip.style.left = x + "px"; tip.style.top = (e.clientY + 16) + "px";
+});
+
+// nav
+function show(v) {
+  $$("#nav button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+  $$(".view").forEach(s => s.classList.toggle("on", s.id === "v-" + v));
+  ({overview: loadOverview, vendors: loadVendors, upload: loadUploads, databases: () => loadSources(), registry: loadRegistry})[v]?.();
+  if (location.hash.slice(1).split("/")[0] !== v) history.replaceState(null, "", "#" + v);
+}
+$$("#nav button").forEach(b => b.onclick = () => show(b.dataset.v));
+
+// ---------------------------------------------------------------- overview
+async function loadOverview() {
+  const s = await api("/api/stats");
+  const v = s.verdicts, checked = s.vendors - (v.UNCHECKED || 0);
+  const src = s.sources;
+  $("#modeBanner").innerHTML = src.crustdata ? "" :
+    `<div class="alert info"><span class="ic">i</span><div><b>GST-only mode.</b> No <span class="mono">CRUSTDATA_API_KEY</span> is set, so checks cover GSTIN validity, the GST registry and declared data only (about 40% coverage); most clean vendors land on HOLD until an officer signs off. Vendors with recorded API data (Ksolves fixtures) get full checks. ${src.gsp_api ? "GST API is connected." : "No GST API configured: upload the GST registry for status data."}</div></div>`;
+  $("#kpis").innerHTML = [
+    ["Vendors on record", s.vendors, `${checked} checked · ${s.registry} GSTINs in registry`],
+    ["Rejected", v.REJECT || 0, `${s.alerts.length} knockout alert${s.alerts.length === 1 ? "" : "s"}`],
+    ["On hold", v.HOLD || 0, "needs officer review"],
+    ["Approved", v.APPROVE || 0, `${inr(s.value_cleared_inr)} cleared`],
+    ["Tender value stopped", inr(s.value_at_risk_inr), "bids rejected before payment"],
+  ].map(([l, n, note]) => `<div class="card kpi"><div class="label">${l}</div><div class="value">${n}</div><div class="note">${note}</div></div>`).join("");
+
+  const total = s.vendors || 1;
+  $("#verdictChart").innerHTML = s.vendors ? `
+    <div class="stack" role="img" aria-label="${VERDICTS.map(k => `${VLABEL[k]} ${v[k] || 0}`).join(", ")}">
+      ${VERDICTS.filter(k => v[k]).map(k => `<div class="seg-${k}" style="flex:${v[k]}" data-tip="<b>${VLABEL[k]}</b><br>${v[k]} vendor${v[k] === 1 ? "" : "s"} · ${Math.round(100 * v[k] / total)}%"></div>`).join("")}
+    </div>
+    <div class="legend">${VERDICTS.map(k => `<span><i class="seg-${k}"></i>${VLABEL[k]} <b>${v[k] || 0}</b></span>`).join("")}</div>` : `<div class="empty">No vendors yet. Upload data or load the demo set.</div>`;
+
+  const max = Math.max(1, ...s.by_state.map(x => x.total));
+  $("#stateChart").innerHTML = s.by_state.length ? s.by_state.slice(0, 12).map(st => `
+    <div class="bar-row"><div class="name" title="${esc(st.state)}">${esc(st.state)}</div>
+      <div class="track" style="width:${100 * st.total / max}%">${VERDICTS.filter(k => st[k]).map(k => `<div class="seg-${k}" style="flex:${st[k]}" data-tip="<b>${esc(st.state)}</b><br>${VLABEL[k]}: ${st[k]}"></div>`).join("")}</div>
+      <div class="num small">${st.total}</div></div>`).join("") + `<div class="legend">${VERDICTS.map(k => `<span><i class="seg-${k}"></i>${VLABEL[k]}</span>`).join("")}</div>` : `<div class="empty">—</div>`;
+
+  $("#alerts").innerHTML = s.alerts.length ? s.alerts.map(a => `
+    <div class="alert critical" style="cursor:pointer" onclick="openVendor(${a.vendor_id})"><span class="ic">!</span>
+      <div><b>${esc(a.vendor_name)}</b> <span class="mono small">${esc(a.gstin || "")}</span><br><span class="small">${esc(a.text)}</span></div></div>`).join("")
+    : `<div class="alert ok"><span class="ic">✓</span><div>No knockouts among checked vendors.</div></div>`;
+
+  $("#recent").innerHTML = s.recent.length ? `<table><tbody>${s.recent.map(c => `
+    <tr class="click" onclick="openVendor(${c.vendor_id})"><td>${esc(c.vendor_name)}<div class="small muted">${when(c.created)} · ${esc(c.mode)}</div></td>
+    <td>${badge(c.verdict)}</td><td class="num">${c.score ?? ""}</td></tr>`).join("")}</tbody></table>` : `<div class="empty">No checks run yet.</div>`;
+}
+$("#seedBtn").onclick = e => busy(e.target, async () => {
+  const r = await api("/api/seed", {method: "POST"});
+  const n = r.loaded.reduce((a, x) => a + x.inserted, 0), u = r.loaded.reduce((a, x) => a + x.updated, 0);
+  toast(`Demo data loaded: ${n} new, ${u} updated`); loadOverview();
+});
+$("#checkAllBtn").onclick = e => busy(e.target, async () => {
+  const r = await api("/api/check-all", {method: "POST"});
+  toast(`Checked ${r.checked} vendor(s)` + (r.errors.length ? `, ${r.errors.length} failed` : "")); loadOverview();
+});
+
+// ---------------------------------------------------------------- GSTIN lookup
+const STATES = {"01":"Jammu and Kashmir","02":"Himachal Pradesh","03":"Punjab","04":"Chandigarh","05":"Uttarakhand","06":"Haryana","07":"Delhi","08":"Rajasthan","09":"Uttar Pradesh","10":"Bihar","11":"Sikkim","12":"Arunachal Pradesh","13":"Nagaland","14":"Manipur","15":"Mizoram","16":"Tripura","17":"Meghalaya","18":"Assam","19":"West Bengal","20":"Jharkhand","21":"Odisha","22":"Chhattisgarh","23":"Madhya Pradesh","24":"Gujarat","26":"Dadra and Nagar Haveli and Daman and Diu","27":"Maharashtra","29":"Karnataka","30":"Goa","31":"Lakshadweep","32":"Kerala","33":"Tamil Nadu","34":"Puducherry","35":"Andaman and Nicobar Islands","36":"Telangana","37":"Andhra Pradesh","38":"Ladakh","97":"Other Territory"};
+$("#gstinInput").addEventListener("input", e => {
+  const g = e.target.value.replace(/\s/g, "").toUpperCase();
+  const st = STATES[g.slice(0, 2)];
+  $("#liveDecode").textContent = g.length < 2 ? "15 characters: state code · PAN · entity no. · Z · check digit"
+    : `${g.length}/15 · ${st ? "State: " + st : "Unknown state code"}${g.length >= 12 ? " · PAN " + g.slice(2, 12) : ""}`;
+});
+$("#lookupForm").onsubmit = e => { e.preventDefault(); doLookup(false); };
+$("#refreshLookup").onclick = () => doLookup(true);
+
+async function doLookup(refresh) {
+  const g = $("#gstinInput").value.replace(/\s/g, "").toUpperCase();
+  if (!g) return;
+  history.replaceState(null, "", "#lookup/" + g);
+  $("#lookupResult").innerHTML = `<div class="card empty">Searching registry and APIs…</div>`;
+  try { renderLookup(await api(`/api/gstin/${encodeURIComponent(g)}${refresh ? "?refresh=1" : ""}`)); }
+  catch (err) { $("#lookupResult").innerHTML = `<div class="alert critical">${esc(err.message)}</div>`; }
+}
+
+function anatomy(d) {
+  const g = d.gstin.padEnd(15, "·");
+  const parts = [
+    [g.slice(0, 2), "State", d.state || "?", !STATES[g.slice(0, 2)]],
+    [g.slice(2, 12), "PAN", d.entity_type ? `entity: ${d.entity_type}` : "", !d.format_ok],
+    [g[12], "Reg. no.", "in this state", false],
+    [g[13], "Default", "always Z", g[13] !== "Z"],
+    [g[14], "Check digit", d.checksum_ok ? "valid ✓" : (d.expected_check_digit ? `should be ${d.expected_check_digit}` : "invalid"), !d.checksum_ok],
+  ];
+  return `<div class="gst-anatomy">${parts.map(([v, l, n, bad]) => `<div class="part ${bad ? "bad" : ""}"><b>${esc(v)}</b><small>${l}${n ? " · " + esc(n) : ""}</small></div>`).join("")}</div>`;
+}
+
+function renderLookup(r) {
+  const d = r.decode, reg = r.registry;
+  const ICON = {critical: "!", warning: "!", info: "i"};
+  const attempts = r.lookup_attempts.map(a => `<span class="pill-src">${esc(a.source)}: ${a.ok ? "found" : esc(a.error)}</span>`).join(" ");
+  $("#lookupResult").innerHTML = `
+  <div class="grid two">
+    <div class="grid">
+      <div class="card">
+        <div class="row"><h3 style="margin:0">GSTIN ${esc(d.gstin)}</h3><div class="spacer"></div>${d.valid ? badge("APPROVE", "Valid structure") : badge("REJECT", "Invalid GSTIN")}</div>
+        ${anatomy(d)}
+      </div>
+      <div class="card">
+        <div class="row" style="margin-bottom:10px"><h3 style="margin:0">Taxpayer record</h3><div class="spacer"></div>${reg ? `<span class="pill-src">source: ${esc(reg.source)}</span>` : ""}</div>
+        ${reg ? `<dl class="kv">
+          <dt>Legal name</dt><dd><b>${esc(reg.legal_name || "—")}</b></dd>
+          <dt>Trade name</dt><dd>${esc(reg.trade_name || "—")}</dd>
+          <dt>Status</dt><dd>${badge((reg.status || "unknown").toLowerCase(), (reg.status || "unknown").toUpperCase())}</dd>
+          <dt>Registered on</dt><dd>${esc(reg.registration_date || "—")}</dd>
+          <dt>GSTR-3B filed (12 mo)</dt><dd>${reg.gstr3b_filed_last_12 ?? "—"}${reg.gstr3b_filed_last_12 != null ? " / 12" : ""}</dd>
+          <dt>Constitution</dt><dd>${esc(reg.constitution || d.entity_type || "—")}</dd>
+          <dt>State</dt><dd>${esc(reg.state || d.state || "—")}</dd>
+          <dt>Address</dt><dd>${esc(reg.address || "—")}</dd>
+          <dt>Last updated</dt><dd>${when(reg.updated)}</dd>
+        </dl>${reg.raw?.url ? `<p class="small muted">Found at <a href="${esc(reg.raw.url)}" target="_blank" rel="noopener">${esc(reg.raw.url)}</a></p>` : ""}`
+        : `<div class="empty">No taxpayer record found.<br><span class="small">Upload the GST registry, or set <span class="mono">GSP_API_URL</span> / <span class="mono">CRUSTDATA_API_KEY</span> for automatic search.</span></div>`}
+        ${attempts ? `<div class="small" style="margin-top:10px">Automatic search: ${attempts}</div>` : ""}
+      </div>
+    </div>
+    <div class="grid">
+      <div class="card"><h3>Risk signals</h3>
+        ${r.alerts.length ? r.alerts.map(a => `<div class="alert ${a.level}"><span class="ic">${ICON[a.level]}</span><div>${esc(a.text)}</div></div>`).join("") : `<div class="alert ok"><span class="ic">✓</span><div>No GST-level risk signals.</div></div>`}
+      </div>
+      <div class="card"><h3>Bids under this GSTIN (${r.vendors.length})</h3>
+        ${r.vendors.length ? `<table><tbody>${r.vendors.map(v => `<tr class="click" onclick="openVendor(${v._id})">
+          <td>${esc(v.vendor_name)}<div class="small muted">${esc(v.tender?.id || "")} ${esc(v.tender?.title || "")}</div></td>
+          <td>${badge(v._last_check?.verdict || "UNCHECKED")}</td><td class="num">${v._last_check?.score ?? ""}</td></tr>`).join("")}</tbody></table>`
+        : `<div class="empty">No bids on record.<br><button class="btn sm" style="margin-top:8px" onclick="quickAdd('${esc(d.gstin)}')">Add as vendor</button></div>`}
+      </div>
+      <div class="card"><h3>Other GSTINs on the same PAN (${r.same_pan.length})</h3>
+        ${r.same_pan.length ? `<table><tbody>${r.same_pan.map(x => `<tr class="click" onclick="lookupGstin('${esc(x.gstin)}')"><td class="mono">${esc(x.gstin || "—")}</td><td>${esc(x.vendor_name || "")}<div class="small muted">${x.registry_only ? "registry only" : "bidder"}</div></td></tr>`).join("")}</tbody></table>`
+        : `<div class="small muted">None. A PAN with several GSTINs bidding under different names can indicate related-party or cover bidding.</div>`}
+      </div>
+    </div>
+  </div>`;
+}
+function lookupGstin(g) { show("lookup"); $("#gstinInput").value = g; $("#gstinInput").dispatchEvent(new Event("input")); doLookup(false); }
+async function quickAdd(g) {
+  try { const r = await api("/api/vendors", {method: "POST", body: JSON.stringify({gstin: g})}); await api(`/api/check/${r.id}`, {method: "POST"}); toast("Vendor added and checked"); doLookup(false); }
+  catch (e) { toast("Error: " + e.message); }
+}
+
+// ---------------------------------------------------------------- vendors
+let vtimer;
+async function loadVendors() {
+  const q = $("#vq").value, v = $("#vverdict").value;
+  const rows = await api(`/api/vendors?q=${encodeURIComponent(q)}&verdict=${v}`);
+  $("#vbody").innerHTML = rows.length ? rows.map(r => `
+    <tr class="click" onclick="openVendor(${r.id})">
+      <td><b>${esc(r.vendor_name)}</b><div class="small muted">${esc(r.domain || "")}${r.department ? " · " + esc(r.department) : ""}</div></td>
+      <td class="mono">${r.gstin ? `<a href="#lookup/${esc(r.gstin)}" onclick="event.stopPropagation();lookupGstin('${esc(r.gstin)}');return false">${esc(r.gstin)}</a>` : `<span class="muted">none</span>`}</td>
+      <td>${esc(r.state || "")}</td>
+      <td class="small">${esc(r.tender.id || "")}<div class="muted">${esc(r.tender.title || "")}</div></td>
+      <td class="num">${r.tender.value_inr ? inr(r.tender.value_inr) : ""}</td>
+      <td>${r.gst_status ? badge(r.gst_status.toLowerCase(), r.gst_status.toUpperCase()) : `<span class="muted small">unknown</span>`}</td>
+      <td>${badge(r.verdict)}${r.reviewed_by ? `<div class="small muted">signed: ${esc(r.reviewed_by)}</div>` : ""}</td>
+      <td class="num">${r.score ?? ""}</td>
+      <td><button class="btn sm" onclick="event.stopPropagation();checkOne(${r.id}, this)">Check</button></td>
+    </tr>`).join("") : `<tr><td colspan="9" class="empty">No vendors match.</td></tr>`;
+}
+$("#vq").oninput = () => { clearTimeout(vtimer); vtimer = setTimeout(loadVendors, 200); };
+$("#vverdict").onchange = loadVendors;
+$("#checkUnchecked").onclick = e => busy(e.target, async () => { const r = await api("/api/check-all?unchecked=1", {method: "POST"}); toast(`Checked ${r.checked} vendor(s)`); loadVendors(); });
+async function checkOne(id, btn) { await busy(btn, async () => { const c = await api(`/api/check/${id}`, {method: "POST"}); toast(`${c.vendor_name}: ${c.verdict} (${c.score})`); loadVendors(); }); }
+$("#addVendorBtn").onclick = () => { const f = $("#addVendorForm"); f.style.display = f.style.display === "none" ? "block" : "none"; };
+$("#cancelAdd").onclick = () => $("#addVendorForm").style.display = "none";
+$("#addVendorForm").onsubmit = async e => {
+  e.preventDefault();
+  const body = Object.fromEntries([...new FormData(e.target)].filter(([, v]) => v.trim()));
+  try {
+    const rep = await api("/api/upload?kind=vendors&dry_run=1", {method: "POST", body: JSON.stringify({filename: "manual entry", rows: [body]})});
+    if (rep.counts.error) { $("#vendIssues").innerHTML = regIssues(rep); return; }
+    $("#vendIssues").innerHTML = "";
+    const warns = rep.details[0].issues.filter(i => i.level === "warning").length;
+    const r = await api("/api/vendors", {method: "POST", body: JSON.stringify(body)});
+    await api(`/api/check/${r.id}`, {method: "POST"});
+    e.target.reset(); e.target.style.display = "none"; toast(warns ? `Saved and checked, with ${warns} verification warning${warns === 1 ? "" : "s"}: see findings` : "Vendor saved and checked", 4500); loadVendors(); openVendor(r.id);
+  } catch (err) { toast("Error: " + err.message, 5000); }
+};
+
+// ---------------------------------------------------------------- vendor drawer
+function ring(score, verdict) {
+  const c = {APPROVE: "var(--good)", HOLD: "var(--warning)", REJECT: "var(--critical)"}[verdict] || "var(--neutral)";
+  const p = Math.max(0, Math.min(100, score || 0)), r = 32, L = 2 * Math.PI * r;
+  return `<svg class="score-ring" viewBox="0 0 76 76" role="img" aria-label="Score ${p}"><circle cx="38" cy="38" r="${r}" fill="none" stroke="var(--line)" stroke-width="7"/>
+    <circle cx="38" cy="38" r="${r}" fill="none" stroke="${c}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${L * p / 100} ${L}" transform="rotate(-90 38 38)"/>
+    <text x="38" y="43" text-anchor="middle" font-size="17" font-weight="650" fill="var(--ink)">${score ?? "–"}</text></svg>`;
+}
+const CAT = {identity: "Identity", capacity: "Capacity", gst: "GST", firm_legal: "Firm legal", people: "Key people", people_legal: "People legal"};
+async function openVendor(id) {
+  const dr = $("#drawer");
+  dr.innerHTML = `<div class="empty">Loading…</div>`; dr.classList.add("on"); $("#drawerBg").classList.add("on");
+  const d = await api(`/api/vendors/${id}`);
+  const v = d.vendor, c = d.checks[0], res = c?.result || {};
+  const people = (v.key_personnel || []).map(p => `${esc(p.name)}${p.title ? ` <span class="muted">(${esc(p.title)})</span>` : ""}`).join(", ");
+  dr.innerHTML = `
+  <header>
+    ${c ? ring(c.score, c.verdict) : ring(null)}
+    <div style="flex:1;min-width:0"><h2 style="margin:0;font-size:18px">${esc(v.vendor_name)}</h2>
+      <div class="small muted mono">${esc(v.gstin || "no GSTIN")} · ${esc(v.domain || "no domain")}</div>
+      <div class="row" style="margin-top:6px">${badge(c?.verdict || "UNCHECKED")}${c ? `<span class="small muted">coverage ${Math.round(c.coverage * 100)}% · ${esc(c.mode)} · ${when(c.created)}</span>` : ""}</div></div>
+    <button class="btn sm" onclick="closeDrawer()" aria-label="Close">✕</button>
+  </header>
+  <div class="body">
+    <div class="row">
+      <button class="btn primary" id="dCheck">Run check</button>
+      ${v.gstin ? `<button class="btn" onclick="closeDrawer();lookupGstin('${esc(v.gstin)}')">Open GSTIN profile</button>` : ""}
+      <div class="spacer"></div>
+      <button class="btn danger" id="dDel">Delete</button>
+    </div>
+    ${c && res.knockouts?.length ? `<div>${res.knockouts.map(k => `<div class="alert critical"><span class="ic">!</span><div><b>Knockout</b> · ${esc(k)}</div></div>`).join("")}</div>` : ""}
+    ${c ? `<div class="card">
+      <div class="row"><h3 style="margin:0">Officer sign-off</h3><div class="spacer"></div>${c.reviewed_by ? `<span class="small">Signed by <b>${esc(c.reviewed_by)}</b>${c.review_note ? ` · “${esc(c.review_note)}”` : ""}</span>` : (res.needs_signoff ? badge("REJECT", "Reject needs sign-off") : badge("UNCHECKED", "Not signed"))}</div>
+      <form id="signoff" class="row" style="margin-top:10px">
+        <input type="text" name="officer" placeholder="Officer name / ID" required style="flex:1 1 160px">
+        <select name="verdict">${["APPROVE", "HOLD", "REJECT"].map(x => `<option ${x === c.verdict ? "selected" : ""}>${x}</option>`).join("")}</select>
+        <input type="text" name="note" placeholder="Note (required to override)" style="flex:2 1 200px">
+        <button class="btn">Sign</button>
+      </form></div>` : ""}
+    ${c ? `<div class="card"><h3>Category scores</h3>${Object.entries(res.categories || {}).map(([k, x]) => `
+      <div class="cat-row"><span>${CAT[k] || k} <span class="muted small">w${x.weight}</span></span>
+      <div class="cat-track" data-tip="${CAT[k]}: ${x.score == null ? "no evidence (counted as 50)" : Math.round(x.score * 100)}"><div style="width:${x.score == null ? 0 : x.score * 100}%;${x.score == null ? "" : x.score < .5 ? "background:var(--critical)" : x.score < .75 ? "background:var(--warning)" : "background:var(--good)"}"></div></div>
+      <span class="num small">${x.score == null ? "n/a" : Math.round(x.score * 100)}</span></div>`).join("")}
+      ${res.overrides?.length ? `<p class="small muted">Overrides: ${res.overrides.map(o => `${esc(o.from)}→${esc(o.to)} by ${esc(o.by)}`).join("; ")}</p>` : ""}</div>` : ""}
+    ${c ? `<div class="card"><h3>Findings (${c.findings.length})</h3>${Object.keys(CAT).map(cat => {
+      const fs = c.findings.filter(f => f.category === cat); if (!fs.length) return "";
+      return `<div style="margin-bottom:8px"><div class="small muted" style="text-transform:uppercase;letter-spacing:.3px">${CAT[cat]}</div>${fs.map(f => `
+        <div class="finding ${f.status}"><div>${badge(f.status, STATUS_LABEL[f.status])} <b>${esc(f.check)}</b>${f.knockout ? `<span class="ko">KNOCKOUT</span>` : ""}</div>
+        <div style="margin-top:3px">${esc(f.detail)}</div>
+        ${f.source ? `<div class="src">source: ${/^https?:/.test(f.source) ? `<a href="${esc(f.source)}" target="_blank" rel="noopener">${esc(f.source)}</a>` : esc(f.source)}${f.date ? " · " + esc(f.date) : ""}</div>` : ""}
+        ${f.passage ? `<div class="src">“${esc(f.passage.slice(0, 220))}”</div>` : ""}</div>`).join("")}</div>`; }).join("")}</div>`
+      : `<div class="card empty">Not checked yet.</div>`}
+    <div class="card"><h3>Bid details</h3><dl class="kv">
+      <dt>Tender</dt><dd>${esc(v.tender?.id || "—")} ${esc(v.tender?.title || "")}</dd>
+      <dt>Tender value</dt><dd>${v.tender?.value_inr ? inr(v.tender.value_inr) : "—"}</dd>
+      <dt>Department</dt><dd>${esc(v.department || "—")}</dd>
+      <dt>Declared PAN / state</dt><dd>${esc(v.pan || "—")} / ${esc(v.state || "—")}</dd>
+      <dt>Entity type</dt><dd>${esc(v.entity_type || "—")}</dd>
+      <dt>Claimed headcount</dt><dd>${v.claimed_headcount ?? "—"}</dd>
+      <dt>Claimed founded</dt><dd>${v.claimed_year_founded ?? "—"}</dd>
+      <dt>Claimed turnover</dt><dd>${v.claimed_turnover_inr ? inr(v.claimed_turnover_inr) : "—"}</dd>
+      <dt>Key personnel</dt><dd>${people || "—"}</dd>
+      <dt>Source</dt><dd>${esc(v._source || "")}</dd>
+    </dl></div>
+    ${d.checks.length > 1 ? `<div class="card"><h3>Check history</h3><table><tbody>${d.checks.map(h => `<tr><td>${when(h.created)}</td><td>${badge(h.verdict)}</td><td class="num">${h.score}</td><td class="small muted">${esc(h.mode)}${h.reviewed_by ? " · " + esc(h.reviewed_by) : ""}</td></tr>`).join("")}</tbody></table></div>` : ""}
+  </div>`;
+  $("#dCheck").onclick = e => busy(e.target, async () => { await api(`/api/check/${id}?refresh=1`, {method: "POST"}); openVendor(id); refreshCurrent(); });
+  $("#dDel").onclick = async () => { if (!confirm(`Delete ${v.vendor_name} and its check history?`)) return; await api(`/api/vendors/${id}`, {method: "DELETE"}); closeDrawer(); refreshCurrent(); };
+  const so = $("#signoff");
+  if (so) so.onsubmit = async e => {
+    e.preventDefault(); const b = Object.fromEntries(new FormData(so));
+    if (b.verdict !== c.verdict && !b.note.trim()) { toast("A note is required to override the system verdict"); return; }
+    try { await api(`/api/checks/${c.id}/review`, {method: "POST", body: JSON.stringify(b)}); toast("Signed off"); openVendor(id); refreshCurrent(); } catch (err) { toast("Error: " + err.message); }
+  };
+}
+function closeDrawer() { $("#drawer").classList.remove("on"); $("#drawerBg").classList.remove("on"); }
+$("#drawerBg").onclick = closeDrawer;
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeDrawer(); });
+function refreshCurrent() { const v = $("#nav button.on").dataset.v; ({overview: loadOverview, vendors: loadVendors})[v]?.(); }
+
+// ---------------------------------------------------------------- upload
+function readRows(file) {
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    const isXlsx = /\.xlsx?$/i.test(file.name);
+    fr.onerror = () => rej(fr.error);
+    fr.onload = () => {
+      try {
+        if (isXlsx) {
+          if (!window.XLSX) throw new Error("Excel reader didn't load (offline?). Save the sheet as CSV instead.");
+          const wb = XLSX.read(fr.result, {type: "array", cellDates: true});
+          res({rows: XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval: "", raw: false})});
+        } else res({content: fr.result});
+      } catch (e) { rej(e); }
+    };
+    isXlsx ? fr.readAsArrayBuffer(file) : fr.readAsText(file);
+  });
+}
+// Verification report shared by file upload, connected databases and manual entry.
+// importFn(runChecks) performs the import and resolves to a summary message.
+const ACTION = {insert: "new", update: "updates existing", skip: "not imported"};
+function showVerification(out, rep, title, importFn) {
+  const c = rep.counts, a = rep.actions, n = a.insert + a.update;
+  const rowsHtml = only => rep.details.filter(d => !only || d.status !== "ok" || d.issues.some(i => i.level !== "info")).map(d => `
+    <tr><td class="num">${d.row}</td><td>${esc(d.name || "—")}<div class="mono small muted">${esc(d.gstin || "")}</div></td>
+    <td>${badge(d.status, {ok: "OK", warning: "Warning", error: "Blocked"}[d.status])}<div class="small muted">${ACTION[d.action]}</div></td>
+    <td><ul class="iss">${d.issues.map(i => `<li class="${i.level}">${i.level === "error" ? "✕" : i.level === "warning" ? "!" : "·"} ${esc(i.text)}</li>`).join("") || `<li class="info">No issues</li>`}</ul></td></tr>`).join("");
+  out.innerHTML = `<div class="verify">
+    <div class="row"><span class="small">${title} · ${rep.rows} row${rep.rows === 1 ? "" : "s"} verified</span></div>
+    <div class="vsum">${badge("ok", `${c.ok} ready`)}${badge("warning", `${c.warning} with warnings`)}${badge("error", `${c.error} blocked`)}
+      <span class="small muted">${a.insert} new · ${a.update} update existing</span></div>
+    ${c.error ? `<div class="alert critical"><span class="ic">✕</span><div class="small">${c.error} row${c.error === 1 ? " has" : "s have"} errors and won't be imported. Fix them in the source and upload again, or import the rest now.</div></div>` : ""}
+    <label class="small row"><input type="checkbox" class="onlyIssues" ${c.warning + c.error ? "checked" : ""}> show only rows with issues</label>
+    <div class="preview"><table class="vtable"><thead><tr><th class="num">Row</th><th>Record</th><th>Result</th><th>Verification</th></tr></thead><tbody></tbody></table></div>
+    ${rep.details_truncated ? `<p class="small muted">Showing the first ${rep.details.length} rows.</p>` : ""}
+    <div class="row">
+      <button class="btn primary imp" ${n ? "" : "disabled"}>Import ${n} verified row${n === 1 ? "" : "s"}</button>
+      ${rep.kind === "vendors" || rep.kind === "registry" ? `<label class="small row"><input type="checkbox" class="runChecks" checked> run vendor checks after import</label>` : ""}
+      <button class="btn cancelV" type="button">Cancel</button>
+    </div></div>`;
+  const body = $("tbody", out), only = $(".onlyIssues", out);
+  const draw = () => body.innerHTML = rowsHtml(only.checked) || `<tr><td colspan="4" class="empty">Every row passed verification.</td></tr>`;
+  only.onchange = draw; draw();
+  $(".cancelV", out).onclick = () => { out.innerHTML = ""; if (out.id === "srcVerify") out.style.display = "none"; };
+  $(".imp", out).onclick = e => busy(e.target, async () => {
+    const msg = await importFn($(".runChecks", out)?.checked);
+    out.innerHTML = `<div class="alert ${c.error ? "warning" : "ok"}" style="margin-top:12px"><span class="ic">${c.error ? "!" : "✓"}</span><div>${esc(msg)}</div></div>`;
+  });
+}
+$$(".drop").forEach(drop => {
+  const input = $("input", drop), kind = drop.dataset.kind, out = drop.nextElementSibling;
+  const handle = async file => {
+    if (!file) return;
+    out.innerHTML = `<p class="small muted">Reading ${esc(file.name)}…</p>`;
+    try {
+      const data = await readRows(file);
+      const payload = JSON.stringify({filename: file.name, ...data});
+      out.innerHTML = `<p class="small muted">Verifying ${esc(file.name)}…</p>`;
+      const rep = await api(`/api/upload?kind=${kind}&dry_run=1`, {method: "POST", body: payload});
+      showVerification(out, rep, `<b>${esc(file.name)}</b>`, async runChecks => {
+        const r = await api(`/api/upload?kind=${kind}`, {method: "POST", body: payload});
+        let msg = `${r.rows} rows · ${r.inserted} new · ${r.updated} updated · ${r.skipped} blocked`;
+        if (runChecks) { const c = await api("/api/check-all", {method: "POST"}); msg += ` · ${c.checked} checks run`; }
+        loadUploads();
+        return msg;
+      });
+    } catch (e) { out.innerHTML = `<div class="alert critical" style="margin-top:12px"><span class="ic">!</span><div>${esc(e.message)}</div></div>`; }
+    input.value = "";
+  };
+  input.onchange = () => handle(input.files[0]);
+  drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
+  drop.ondragleave = () => drop.classList.remove("over");
+  drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); handle(e.dataTransfer.files[0]); };
+});
+async function loadUploads() {
+  const [u, s] = await Promise.all([api("/api/uploads"), api("/api/stats")]);
+  $("#ubody").innerHTML = u.length ? u.map(x => `<tr><td>${when(x.created)}</td><td>${x.kind === "vendors" ? "Vendors" : "GST registry"}</td><td>${esc(x.filename)}</td><td class="num">${x.rows_in}</td><td class="num">${x.inserted}</td><td class="num">${x.updated}</td><td class="num">${x.skipped}</td></tr>`).join("") : `<tr><td colspan="7" class="empty">Nothing uploaded yet.</td></tr>`;
+  const src = s.sources;
+  const row = (on, name, desc) => `<div class="alert ${on ? "ok" : "info"}"><span class="ic">${on ? "✓" : "–"}</span><div><b>${name}</b> · ${on ? "connected" : "not configured"}<div class="small">${desc}</div></div></div>`;
+  $("#sources").innerHTML =
+    row(true, "Uploaded GST registry", "Always searched first for every GSTIN.") +
+    row(src.gsp_api, "GST / GSP API", "Set <span class='mono'>GSP_API_URL</span> (e.g. <span class='mono'>https://your-gsp/taxpayer/{gstin}</span>) and <span class='mono'>GSP_API_KEY</span>. Any provider returning the GSTN taxpayer JSON (lgnm, sts, rgdt, ctb) works. Results are saved to the registry.") +
+    row(src.crustdata, "Crustdata (web, company, people)", "Set <span class='mono'>CRUSTDATA_API_KEY</span> for full six-category checks and public web GSTIN status search.") +
+    row(src.replay_fixtures.length > 0, "Recorded API responses", src.replay_fixtures.length ? `Used offline for matching vendors: ${src.replay_fixtures.map(esc).join(", ")}` : "None found in fixtures/.");
+}
+
+// ---------------------------------------------------------------- registry
+let rtimer;
+async function loadRegistry() {
+  const rows = await api(`/api/registry?q=${encodeURIComponent($("#rq").value)}`);
+  $("#rbody").innerHTML = rows.length ? rows.map(r => `<tr class="click" onclick="lookupGstin('${esc(r.gstin)}')">
+    <td class="mono">${esc(r.gstin)}</td><td>${esc(r.legal_name || "")}</td><td>${esc(r.trade_name || "")}</td>
+    <td>${r.status ? badge(r.status.toLowerCase(), r.status.toUpperCase()) : ""}</td><td>${esc(r.registration_date || "")}</td>
+    <td class="num">${r.gstr3b_filed_last_12 ?? ""}</td><td><span class="pill-src">${esc(r.source)}</span></td></tr>`).join("")
+    : `<tr><td colspan="7" class="empty">Registry is empty. Upload a GST registry file or search GSTINs with an API configured.</td></tr>`;
+}
+$("#rq").oninput = () => { clearTimeout(rtimer); rtimer = setTimeout(loadRegistry, 200); };
+
+// ---------------------------------------------------------------- databases
+const fileB64 = file => new Promise((res, rej) => { const fr = new FileReader(); fr.onerror = () => rej(fr.error); fr.onload = () => res(String(fr.result).split(",")[1] || ""); fr.readAsDataURL(file); });
+let srcType = "sqlite";
+$$("#srcForm .seg-tabs button").forEach(b => b.onclick = () => {
+  srcType = b.dataset.t;
+  $$("#srcForm .seg-tabs button").forEach(x => x.classList.toggle("on", x === b));
+  $$("#srcForm .t-sqlite").forEach(el => el.style.display = srcType === "sqlite" ? "" : "none");
+  $$("#srcForm .t-url").forEach(el => el.style.display = srcType === "url" ? "" : "none");
+});
+$("#srcForm").onsubmit = e => {
+  e.preventDefault();
+  const f = e.target, btn = $("button.primary", f);
+  busy(btn, async () => {
+    const body = {name: f.name.value, kind: f.kind.value, type: srcType};
+    if (srcType === "sqlite") {
+      const file = f.file.files[0]; if (!file) throw new Error("Choose a database file");
+      body.filename = file.name; body.file_b64 = await fileB64(file);
+    } else body.url = f.url.value;
+    const r = await api("/api/sources", {method: "POST", body: JSON.stringify(body)});
+    f.reset(); toast("Database connected. Choose a table if needed, then verify.");
+    await loadSources(r.id);
+  });
+};
+async function loadSources(focusId) {
+  const list = await api("/api/sources");
+  $("#srcList").innerHTML = list.length ? list.map(s => {
+    const lr = s.last_result;
+    const tables = s.type === "sqlite" ? `<label class="small muted row" style="margin-top:6px">Table
+        <select data-table="${s.id}"><option value="">choose a table…</option>${(s.tables || []).map(t => `<option value="${esc(t.table)}" data-guess="${t.guess}" ${t.table === s.table_name ? "selected" : ""}>${esc(t.table)} (${t.rows} rows${t.table === s.table_name ? "" : `, looks like ${t.guess === "registry" ? "GST registry" : "vendors"}`})</option>`).join("")}</select></label>` : "";
+    return `<div class="src-row" ${s.id === focusId ? 'style="background:var(--brand-soft);margin:0 -16px;padding:12px 16px"' : ""}>
+      <div><b>${esc(s.name)}</b> <span class="pill-src">${s.type === "sqlite" ? "database file" : "online link"}</span> <span class="pill-src">${s.kind === "registry" ? "GST registry" : "vendors"}</span>
+        ${s.url ? `<div class="small muted" style="overflow-wrap:anywhere">${esc(s.url)}</div>` : ""}
+        ${s.error ? `<div class="small" style="color:var(--critical-text)">${esc(s.error)}</div>` : ""}
+        ${tables}
+        <div class="small muted" style="margin-top:4px">${s.last_sync ? `Last synced ${when(s.last_sync)}: ${lr.rows} rows, ${lr.inserted} new, ${lr.updated} updated, ${lr.skipped} blocked` : "Never synced"}</div></div>
+      <div class="row" style="align-content:flex-start">
+        <button class="btn" data-verify="${s.id}">Verify &amp; import</button>
+        <button class="btn sm danger" data-del="${s.id}" aria-label="Remove ${esc(s.name)}">Remove</button></div></div>`;
+  }).join("") : `<div class="empty">No databases connected yet.</div>`;
+  $$("#srcList [data-table]").forEach(sel => sel.onchange = async () => {
+    const opt = sel.selectedOptions[0];
+    try { await api(`/api/sources/${sel.dataset.table}`, {method: "POST", body: JSON.stringify({table: sel.value || null, kind: opt?.dataset.guess || undefined})}); loadSources(+sel.dataset.table); }
+    catch (e) { toast("Error: " + e.message); }
+  });
+  $$("#srcList [data-verify]").forEach(b => b.onclick = () => busy(b, () => verifySource(+b.dataset.verify, list.find(s => s.id === +b.dataset.verify))));
+  $$("#srcList [data-del]").forEach(b => b.onclick = async () => {
+    const s = list.find(x => x.id === +b.dataset.del);
+    if (!confirm(`Disconnect "${s.name}"? Records already imported from it stay.`)) return;
+    await api(`/api/sources/${s.id}`, {method: "DELETE"}); $("#srcVerify").style.display = "none"; loadSources();
+  });
+}
+async function verifySource(id, s) {
+  const out = $("#srcVerify");
+  const rep = await api(`/api/sources/${id}/verify`, {method: "POST"});
+  out.style.display = "block";
+  showVerification(out, rep, `<b>${esc(s.name)}</b>${s.table_name ? " · " + esc(s.table_name) : ""}`, async runChecks => {
+    const r = await api(`/api/sources/${id}/sync`, {method: "POST"});
+    let msg = `Synced: ${r.rows} rows · ${r.inserted} new · ${r.updated} updated · ${r.skipped} blocked`;
+    if (runChecks) { const c = await api("/api/check-all", {method: "POST"}); msg += ` · ${c.checked} checks run`; }
+    loadSources(id);
+    return msg;
+  });
+  out.scrollIntoView({behavior: "smooth", block: "start"});
+}
+(function () {
+  const drop = $("#restoreDrop"), input = $("input", drop), out = $("#restoreOut");
+  const handle = async file => {
+    if (!file) return;
+    if (!confirm(`Restore from "${file.name}"?\n\nThis REPLACES all current vendors, GST registry records, checks and sign-offs with the backup's contents. The current data is saved to dashboard/backups/ first.`)) { input.value = ""; return; }
+    out.innerHTML = `<p class="small muted">Restoring…</p>`;
+    try {
+      const r = await api("/api/db/restore", {method: "POST", body: JSON.stringify({file_b64: await fileB64(file)})});
+      out.innerHTML = `<div class="alert ok" style="margin-top:12px"><span class="ic">✓</span><div>Restored ${r.restored.vendors} vendors, ${r.restored.gst_registry} registry records, ${r.restored.checks} checks.<div class="small">Previous data saved to <span class="mono">${esc(r.previous_data_saved_to)}</span></div></div></div>`;
+      loadSources();
+    } catch (e) { out.innerHTML = `<div class="alert critical" style="margin-top:12px"><span class="ic">!</span><div>${esc(e.message)}</div></div>`; }
+    input.value = "";
+  };
+  input.onchange = () => handle(input.files[0]);
+  drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
+  drop.ondragleave = () => drop.classList.remove("over");
+  drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); handle(e.dataTransfer.files[0]); };
+})();
+
+// ---------------------------------------------------------------- manual registry entry
+const regBody = () => Object.fromEntries([...new FormData($("#regForm"))].filter(([, v]) => String(v).trim()).map(([k, v]) => [k, String(v).trim()]));
+function regIssues(rep) {
+  const d = rep.details[0];
+  if (!d) return "";
+  const issues = d.issues.filter(i => i.level !== "info" || rep.counts.error === 0);
+  return `<div class="alert ${d.status === "error" ? "critical" : d.status === "warning" ? "warning" : "ok"}" style="margin-top:12px"><span class="ic">${d.status === "ok" ? "✓" : "!"}</span>
+    <div>${d.status === "error" ? "<b>Can't save:</b>" : d.status === "warning" ? "<b>Can be saved, with warnings:</b>" : `<b>Verified.</b> ${d.action === "update" ? "This updates an existing record." : "This adds a new record."}`}
+    ${issues.length ? `<ul class="iss" style="margin-top:4px">${issues.map(i => `<li>${esc(i.text)}</li>`).join("")}</ul>` : ""}</div></div>`;
+}
+$("#addRegBtn").onclick = () => { const f = $("#regForm"); f.style.display = f.style.display === "none" ? "block" : "none"; $("#regIssues").innerHTML = ""; };
+$("#regCancel").onclick = () => $("#regForm").style.display = "none";
+$("#regVerify").onclick = e => busy(e.target, async () => { $("#regIssues").innerHTML = regIssues(await api("/api/registry?dry_run=1", {method: "POST", body: JSON.stringify(regBody())})); });
+$("#regForm").onsubmit = e => {
+  e.preventDefault();
+  busy($("button.primary", e.target), async () => {
+    const rep = await api("/api/registry?dry_run=1", {method: "POST", body: JSON.stringify(regBody())});
+    if (rep.counts.error) { $("#regIssues").innerHTML = regIssues(rep); return; }
+    await api("/api/registry", {method: "POST", body: JSON.stringify(regBody())});
+    toast(`Saved ${regBody().gstin}`); e.target.reset(); e.target.style.display = "none"; loadRegistry();
+  });
+};
+
+// boot
+(function () {
+  const [v, arg] = location.hash.slice(1).split("/");
+  if (v === "lookup" && arg) lookupGstin(decodeURIComponent(arg));
+  else show(["overview", "lookup", "vendors", "upload", "databases", "registry"].includes(v) ? v : "overview");
+})();
+</script>
+</body>
+</html>

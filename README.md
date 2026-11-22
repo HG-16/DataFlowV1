@@ -74,9 +74,7 @@ POST /api/upload?kind=vendors|registry   (JSON {filename, rows|content} or a raw
 POST /api/vendors   POST /api/check/{id}   POST /api/check-all[?unchecked=1]
 POST /api/checks/{id}/review {officer, verdict, note}
 GET  /api/export.csv   GET /api/template/{vendors|registry}.csv
+
 ```
 
-e.g. `curl -X POST "http://127.0.0.1:8765/api/upload?kind=registry" -H "content-type: text/csv" --data-binary @gst.csv`
 
-Data is stored in `dashboard/dashboard.db` (SQLite). The sample files in `dashboard/samples/` are fictional firms.
-`rapidfuzz` is used when installed; otherwise a built-in difflib fallback is used.

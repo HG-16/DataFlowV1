@@ -41,16 +41,20 @@ class Http:
         return hashlib.sha256((url + json.dumps(clean, sort_keys=True)).encode()).hexdigest()
 
     def preload(self, calls: list[dict]):
-        for c in calls:
+        for c in calls:   # a recorded failure replays as the same error
+            val = {"__error__": c["response_error"]} if "response_error" in c else c["response"]
             self.db.execute("insert or replace into http_cache values(?,?)",
-                            (self.key(c["url"], c.get("params")), json.dumps(c["response"])))
+                            (self.key(c["url"], c.get("params")), json.dumps(val)))
         self.db.commit()
 
     def get(self, url: str, params: dict | None = None, headers: dict | None = None):
         k = self.key(url, params)
         row = self.db.execute("select v from http_cache where k=?", (k,)).fetchone()
         if row:
-            return json.loads(row[0])
+            val = json.loads(row[0])
+            if isinstance(val, dict) and "__error__" in val:
+                raise RuntimeError(val["__error__"])
+            return val
         if self.offline:
             raise RuntimeError(f"{url}: not in replay file (offline mode)")
         import httpx

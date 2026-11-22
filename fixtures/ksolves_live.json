@@ -1,5 +1,5 @@
 {
- "_note": "Real Crustdata API v2025-11-01 responses captured 2026-11-22 via the Crustdata MCP connector for the Ksolves demo bids. Long descriptions trimmed, search result lists trimmed to the first few items, fuzzy company matches trimmed; values unchanged.",
+ "_note": "Real Crustdata API v2025-11-01 responses captured 2026-11-22 via the Crustdata MCP connector for the Ksolves demo bids. Long descriptions trimmed, search result lists trimmed to the first few items, fuzzy company matches trimmed; values unchanged. EODHD search response recorded live on the user's free-plan key (fundamentals not available on that plan).",
  "calls": [
   {
    "path": "/company/identify",
@@ -1602,5 +1602,33 @@
    ]
   }
  ],
- "http_calls": []
+ "http_calls": [
+  {
+   "url": "https://eodhd.com/api/search/Ksolves India",
+   "params": {
+    "fmt": "json"
+   },
+   "response": [
+    {
+     "Code": "KSOLVES",
+     "Exchange": "NSE",
+     "Name": "Ksolves India Limited",
+     "Type": "Common Stock",
+     "Country": "India",
+     "Currency": "INR",
+     "ISIN": "INE0D6I01015",
+     "isPrimary": true,
+     "previousClose": 204.43,
+     "previousCloseDate": "2026-11-20"
+    }
+   ]
+  },
+  {
+   "url": "https://eodhd.com/api/fundamentals/KSOLVES.NSE",
+   "params": {
+    "fmt": "json"
+   },
+   "response_error": "HTTP 404: Symbol not found (EODHD free plan)"
+  }
+ ]
 }

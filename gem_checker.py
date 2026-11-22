@@ -533,26 +533,42 @@ def check_financials(c: Crust, bid: dict, rep: Report, company: dict | None):
         except Exception:  # noqa: BLE001
             pass
 
-    # ---- EODHD: audited yearly financials for listed companies
+    # ---- EODHD: confirm the listed entity (works on the free plan), then audited financials (paid plan)
     fin, src = None, "EODHD fundamentals"
     ticker = (bid.get("stock_ticker") or "").strip().upper()
     if pv.eodhd_configured() or getattr(c, "offline", False):
         try:
-            if not ticker and symbols:
-                ticker = f"{symbols[0]}.NSE"
-            if not ticker:
-                hits = [h for h in pv.eodhd_find_ticker(c.ext, bid["vendor_name"])
-                        if h.get("Exchange") in ("NSE", "BSE") and name_sim(bid["vendor_name"], h.get("Name", "")) >= 85]
-                ticker = f"{hits[0]['Code']}.{hits[0]['Exchange']}" if hits else ""
-            if ticker:
+            hits = [h for h in pv.eodhd_find_ticker(c.ext, bid["vendor_name"])
+                    if h.get("Exchange") in ("NSE", "BSE") and name_sim(bid["vendor_name"], h.get("Name", "")) >= 85]
+            if hits:
+                h = next((x for x in hits if x.get("isPrimary")), hits[0])
+                ticker = ticker or f"{h['Code']}.{h['Exchange']}"
+                rep.add("identity", "listed_entity", CONFIRMED, 1.0,
+                        f"Listed on {h['Exchange']} as {h['Code']} - '{h.get('Name')}' (ISIN {h.get('ISIN') or 'n/a'})",
+                        "EODHD search", f"previous close ₹{h.get('previousClose')} on {h.get('previousCloseDate')}",
+                        str(h.get("previousCloseDate") or ""))
+                cin = (bid.get("cin") or "").upper()
+                if cin[:1] == "U":
+                    rep.add("identity", "cin_listing", CONTRADICTED, 0.3,
+                            "CIN says unlisted (U...) but the firm is listed on NSE/BSE", "CIN vs EODHD search")
+            elif symbols:
+                ticker = ticker or f"{symbols[0]}.NSE"
+        except Exception as e:  # noqa: BLE001
+            rep.add("identity", "listed_entity", CANT_VERIFY, None, f"EODHD search failed: {e}", "EODHD")
+        if ticker:
+            try:
                 fin = pv.eodhd_fundamentals(c.ext, ticker)
                 src = f"EODHD fundamentals {ticker}"
                 if fin["name"] and name_sim(bid["vendor_name"], fin["name"]) < 85:
                     rep.add("financials", "listed_entity", CANT_VERIFY, None,
                             f"{ticker} is '{fin['name']}', not the vendor - financials ignored", src)
                     fin = None
-        except Exception as e:  # noqa: BLE001
-            rep.add("financials", "eodhd", CANT_VERIFY, None, f"EODHD lookup failed: {e}", "EODHD")
+            except Exception as e:  # noqa: BLE001
+                msg = str(e)
+                if "403" in msg or "Only EOD" in msg or "404" in msg:
+                    msg = (f"EODHD has no fundamentals for {ticker} on this plan (free plan = prices only; "
+                           "audited financials need EODHD's Fundamentals plan)")
+                rep.add("financials", "eodhd", CANT_VERIFY, None, msg, "EODHD")
     else:
         rep.add("financials", "eodhd", CANT_VERIFY, None, "EODHD not configured (set EODHD_API_KEY)", "EODHD")
 

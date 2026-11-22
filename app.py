@@ -19,18 +19,37 @@ st.caption("Verify an IT vendor's GeM bid before the money is paid: identity, ca
            "pending cases and key people. Every finding cites its source.")
 
 # ---------------------------------------------------------------- sidebar: keys / mode
+# Server-side keys (env vars / Streamlit secrets) are NEVER sent to the browser: the inputs start empty
+# and a typed value only overrides the server key for this session.
+def server_secret(name: str) -> str:
+    try:
+        if name in st.secrets:
+            return str(st.secrets[name])
+    except Exception:  # noqa: BLE001 - no secrets file
+        pass
+    return os.environ.get(name, "")
+
+
+def key_input(label: str, name: str, key: str) -> str:
+    have = bool(server_secret(name))
+    typed = st.text_input(label, type="password", key=key,
+                          placeholder="using server key" if have else "not set",
+                          help="Leave empty to use the key configured on the server." if have else None)
+    return typed.strip() or server_secret(name)
+
+
 with st.sidebar:
     st.header("Data sources")
-    replay = st.checkbox("Offline demo (recorded real data, Ksolves)", value=not os.environ.get("CRUSTDATA_API_KEY"))
-    crust_key = st.text_input("Crustdata API key", value=os.environ.get("CRUSTDATA_API_KEY", ""), type="password",
-                              disabled=replay)
+    replay = st.checkbox("Offline demo (recorded real data, Ksolves)", value=not server_secret("CRUSTDATA_API_KEY"))
+    crust_key = "" if replay else key_input("Crustdata API key", "CRUSTDATA_API_KEY", "ck")
     st.subheader("GST in Cloud")
-    gst_key = st.text_input("API key", value=os.environ.get("GSTINCLOUD_API_KEY", ""), type="password", key="gk")
-    gst_url = st.text_input("URL template (use {gstin})", value=os.environ.get("GSTINCLOUD_URL", ""))
-    gst_auth = st.text_input("Auth (header:Name or query:param)",
-                             value=os.environ.get("GSTINCLOUD_AUTH", "header:Authorization"))
+    gst_key = key_input("API key", "GSTINCLOUD_API_KEY", "gk")
+    gst_url = st.text_input("URL template (use {gstin})", placeholder=server_secret("GSTINCLOUD_URL") or "https://.../{gstin}") \
+        or server_secret("GSTINCLOUD_URL")
+    gst_auth = st.text_input("Auth (header:Name or query:param)", placeholder=server_secret("GSTINCLOUD_AUTH") or "header:Authorization") \
+        or server_secret("GSTINCLOUD_AUTH") or "header:Authorization"
     st.subheader("EODHD")
-    eod_key = st.text_input("API key ", value=os.environ.get("EODHD_API_KEY", ""), type="password", key="ek")
+    eod_key = key_input("API key ", "EODHD_API_KEY", "ek")
     st.divider()
     st.markdown("**Weights**  \n" + "  \n".join(f"{k}: {v}" for k, v in g.WEIGHTS.items()))
 

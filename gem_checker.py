@@ -30,6 +30,8 @@ import sys
 import time
 from dataclasses import asdict, dataclass, field
 
+import providers as pv
+
 BASE = "https://api.crustdata.com"
 API_VERSION = "2025-11-01"
 MAX_CREDITS = 40
@@ -42,11 +44,12 @@ MAX_SECONDS = 180
 # Knockout rules (cancelled GST, debarment, lookalike domain, criminal/fraud case
 # against firm or key person) force REJECT regardless of score.
 WEIGHTS = {
-    "identity": 15,      # is this really the firm it claims to be?
-    "capacity": 20,      # can it actually deliver? (headcount, age, hiring, shell signals)
-    "gst": 20,           # tax registration genuine, active, filing regularly
-    "firm_legal": 20,    # pending cases / insolvency / debarment against the firm
-    "people": 15,        # named key personnel really work there
+    "identity": 15,      # is this really the firm it claims to be? (domain, CIN, Udyam)
+    "capacity": 15,      # can it deliver? (headcount, age, hiring, experience, shell signals)
+    "gst": 20,           # GSTIN genuine, active, in the vendor's name, filing regularly (GST in Cloud)
+    "financials": 15,    # real revenue / profit / net worth vs claims and tender turnover rule (EODHD)
+    "firm_legal": 15,    # pending cases / insolvency / debarment against the firm
+    "people": 10,        # named key personnel really work there
     "people_legal": 10,  # cases against key personnel
 }
 UNKNOWN_PRIOR = 0.5
@@ -102,11 +105,14 @@ class Crust:
         self.db = sqlite3.connect(db)
         self.db.execute("create table if not exists cache(k text primary key, v text)")
         self.db.execute("create table if not exists ledger(ts real, path text, credits real)")
+        self.ext = pv.Http(self.db, offline=self.offline)   # GST in Cloud / EODHD, same cache
         if replay:  # preload recorded real responses under the exact cache keys the checks will ask for
-            for call in json.load(open(replay))["calls"]:
+            fx = json.load(open(replay))
+            for call in fx.get("calls", []):
                 self.db.execute("insert or replace into cache values(?,?)",
                                 (self._key(call["path"], call["body"]), json.dumps(call["response"])))
             self.db.commit()
+            self.ext.preload(fx.get("http_calls", []))
 
     @staticmethod
     def _key(path: str, body: dict) -> str:
@@ -412,48 +418,298 @@ def check_gst(c: Crust | None, bid: dict, rep: Report):
             rep.add("gst", "entity_type", CONFIRMED if ok else CONTRADICTED, 1.0 if ok else 0.2,
                     f"PAN type '{entity}' vs declared '{declared}'", "PAN 4th character")
 
-    # Status: declared/manual value first (from GST portal search), else public web lookup.
-    status = (bid.get("gst_status") or "").lower()
-    src, passage = "declared / services.gst.gov.in", ""
-    if not status and c is not None:
+    # ---- Authoritative record from GST in Cloud (status, legal name, constitution, returns)
+    rec = None
+    if c is not None and (pv.gst_configured() or getattr(c, "offline", False)):
         try:
-            for r in web_search(c, f'"{g}" GST status', rep)[:6]:
-                text = (str(r.get("title", "")) + " " + snippet_of(r))
-                if g not in text.upper():
-                    continue
-                low = text.lower()
-                m = re.search(r"\b(active|cancelled|canceled|suspended|inactive)\b", low)
-                if m:
-                    status, src, passage = m.group(1), r.get("url", "web"), snippet_of(r)
-                    if bid["vendor_name"] and not mentions(bid["vendor_name"], text):
-                        rep.add("gst", "gst_legal_name", CONTRADICTED, 0.2,
-                                "Public GSTIN record does not mention the vendor's name", src, passage)
-                    break
+            rec = pv.gst_lookup(c.ext, g)
         except Exception as e:  # noqa: BLE001
-            rep.add("gst", "gst_status", CANT_VERIFY, None, f"status lookup failed: {e}")
-    if status in ("cancelled", "canceled", "suspended", "inactive"):
-        rep.add("gst", "gst_status", RED_FLAG, 0.0, f"GSTIN status: {status.upper()}", src, passage, knockout=True)
+            rep.add("gst", "gst_api", CANT_VERIFY, None, f"GST in Cloud lookup failed: {e}", "GST in Cloud")
+    elif c is not None:
+        rep.add("gst", "gst_api", CANT_VERIFY, None,
+                "GST in Cloud not configured (set GSTINCLOUD_API_KEY + GSTINCLOUD_URL) - using fallbacks", "GST in Cloud")
+
+    src_api = "GST in Cloud (GSTN taxpayer record)"
+    status, src, passage = "", "declared / services.gst.gov.in", ""
+    if rec and rec.get("status"):
+        status, src = rec["status"].lower(), src_api
+        passage = f"sts={rec['status']}; lgnm={rec['legal_name']}; tradeNam={rec['trade_name']}; rgdt={rec['registration_date']}"
+        # Legal / trade name must be the vendor - otherwise someone else's GSTIN is being used.
+        best = max(name_sim(bid["vendor_name"], rec["legal_name"]), name_sim(bid["vendor_name"], rec["trade_name"]))
+        if rec["legal_name"] or rec["trade_name"]:
+            ok = best >= 85
+            rep.add("gst", "gst_legal_name", CONFIRMED if ok else CONTRADICTED, 1.0 if ok else 0.0,
+                    f"GSTIN registered to '{rec['legal_name'] or rec['trade_name']}'"
+                    + ("" if ok else f" - NOT '{bid['vendor_name']}'") + f" (match {best:.0f}%)",
+                    src_api, passage, knockout=best < 60)
+        if rec["constitution"] and bid.get("entity_type"):
+            ok = any(w in rec["constitution"].lower() for w in bid["entity_type"].lower().split())
+            rep.add("gst", "gst_constitution", CONFIRMED if ok else CONTRADICTED, 1.0 if ok else 0.3,
+                    f"Constitution on GST record: '{rec['constitution']}' (declared '{bid['entity_type']}')", src_api)
+    else:
+        status = (bid.get("gst_status") or "").lower()
+        if not status and c is not None:     # last resort: public web pages that mirror the GST record
+            try:
+                for r in web_search(c, f'"{g}" GST status', rep)[:6]:
+                    text = (str(r.get("title", "")) + " " + snippet_of(r))
+                    if g not in text.upper():
+                        continue
+                    m = re.search(r"\b(active|cancelled|canceled|suspended|inactive)\b", text.lower())
+                    if m:
+                        status, src, passage = m.group(1), r.get("url", "web"), snippet_of(r)
+                        if bid["vendor_name"] and not mentions(bid["vendor_name"], text):
+                            rep.add("gst", "gst_legal_name", CONTRADICTED, 0.2,
+                                    "Public GSTIN record does not mention the vendor's name", src, passage)
+                        break
+            except Exception as e:  # noqa: BLE001
+                rep.add("gst", "gst_status", CANT_VERIFY, None, f"status lookup failed: {e}")
+
+    if status in ("cancelled", "canceled", "suspended", "inactive", "cancelled suo-moto"):
+        extra = f" since {rec['cancellation_date']}" if rec and rec.get("cancellation_date") else ""
+        rep.add("gst", "gst_status", RED_FLAG, 0.0, f"GSTIN status: {status.upper()}{extra}", src, passage, knockout=True)
     elif status == "active":
         rep.add("gst", "gst_status", CONFIRMED, 1.0, "GSTIN status: ACTIVE", src, passage)
+    elif status:
+        rep.add("gst", "gst_status", CONTRADICTED, 0.4, f"GSTIN status: {status.upper()}", src, passage)
     elif not any(f.check == "gst_status" for f in rep.findings):
         rep.add("gst", "gst_status", CANT_VERIFY, None,
                 f"Status unknown - check https://services.gst.gov.in/services/searchtp for {g}")
 
-    # Filing regularity (from GST portal 'Return filing' table: GSTR-3B filed in last 12 months).
-    filed = _num(bid.get("gstr3b_filed_last_12"))
+    # ---- Filing regularity: GSTR-3B months filed out of the last 12 (API first, else declared)
+    filed, fsrc = None, "declared / GST portal"
+    if rec and rec.get("filings"):
+        filed, fsrc = pv.gstr3b_filed_last_12(rec["filings"]), src_api
+    if filed is None:
+        filed = _num(bid.get("gstr3b_filed_last_12"))
     if filed is not None:
         s = max(0.0, min(1.0, filed / 12))
         rep.add("gst", "filing_regularity", CONFIRMED if s >= 0.9 else CONTRADICTED, s,
-                f"GSTR-3B filed {filed:.0f}/12 months", "declared / GST portal")
-    reg = bid.get("gst_registration_date")
-    if reg:
+                f"GSTR-3B filed {filed:.0f}/12 months" + ("" if s >= 0.9 else " - irregular filer"), fsrc)
+
+    # ---- Registration age (API first, else declared)
+    reg_d = pv.parse_date(rec.get("registration_date")) if rec else None
+    reg_src = src_api if reg_d else "declared / GST portal"
+    reg_d = reg_d or pv.parse_date(bid.get("gst_registration_date"))
+    if reg_d:
+        yrs = (dt.date.today() - reg_d).days / 365.25
+        s = 1.0 if yrs >= 3 else 0.6 if yrs >= 1 else 0.2
+        rep.add("gst", "gst_age", CONFIRMED if yrs >= 1 else CONTRADICTED, s,
+                f"GST registered {yrs:.1f} years ago ({reg_d.isoformat()})", reg_src, date=reg_d.isoformat())
+
+
+# --------------------------------------------------------------------------- 3b. financials
+USD_INR = float(os.environ.get("USD_INR", "84"))   # only for Crustdata's USD revenue *estimates*
+
+
+def _cr(x):
+    return f"₹{x/1e7:,.1f} cr"
+
+
+def check_financials(c: Crust, bid: dict, rep: Report, company: dict | None):
+    """Claimed turnover / net worth vs real financials.
+    1) EODHD audited financials for listed firms (strong evidence)
+    2) Crustdata revenue estimate band (weak evidence: wide, model-based - never a knockout)
+    3) Tender eligibility: average turnover of last 3 FYs >= minimum the bid document requires."""
+    claimed = [_num(x) for x in (bid.get("turnover_last_3fy_inr") or []) if _num(x)]
+    claimed_latest = claimed[0] if claimed else _num(bid.get("claimed_turnover_inr"))
+    claimed_avg = sum(claimed) / len(claimed) if claimed else claimed_latest
+    tender = bid.get("tender") or {}
+    min_avg = _num(tender.get("min_avg_turnover_inr"))
+    cid = (company or {}).get("crustdata_company_id")
+
+    # ---- Crustdata: revenue band + stock symbol (to find the listed entity)
+    band, symbols = None, []
+    if cid:
         try:
-            yrs = (dt.date.today() - dt.date.fromisoformat(reg)).days / 365.25
-            s = 1.0 if yrs >= 3 else 0.6 if yrs >= 1 else 0.2
-            rep.add("gst", "gst_age", CONFIRMED if yrs >= 1 else CONTRADICTED, s,
-                    f"GST registered {yrs:.1f} years ago ({reg})", "declared / GST portal", date=reg)
-        except ValueError:
+            ms = company_matches(c.post("/company/enrich", {"crustdata_company_ids": [cid], "fields": ["revenue"]},
+                                        est_cost=2))
+            rv = (ms[0][1].get("revenue") or {}) if ms else {}
+            est = rv.get("estimated") or {}
+            if est.get("lower_bound_usd") or est.get("upper_bound_usd"):
+                band = (_num(est.get("lower_bound_usd")) or 0, _num(est.get("upper_bound_usd")) or 0)
+            symbols = ((rv.get("public_markets") or {}).get("stock_symbols")) or []
+        except BudgetExceeded:
+            raise
+        except Exception:  # noqa: BLE001
             pass
+
+    # ---- EODHD: audited yearly financials for listed companies
+    fin, src = None, "EODHD fundamentals"
+    ticker = (bid.get("stock_ticker") or "").strip().upper()
+    if pv.eodhd_configured() or getattr(c, "offline", False):
+        try:
+            if not ticker and symbols:
+                ticker = f"{symbols[0]}.NSE"
+            if not ticker:
+                hits = [h for h in pv.eodhd_find_ticker(c.ext, bid["vendor_name"])
+                        if h.get("Exchange") in ("NSE", "BSE") and name_sim(bid["vendor_name"], h.get("Name", "")) >= 85]
+                ticker = f"{hits[0]['Code']}.{hits[0]['Exchange']}" if hits else ""
+            if ticker:
+                fin = pv.eodhd_fundamentals(c.ext, ticker)
+                src = f"EODHD fundamentals {ticker}"
+                if fin["name"] and name_sim(bid["vendor_name"], fin["name"]) < 85:
+                    rep.add("financials", "listed_entity", CANT_VERIFY, None,
+                            f"{ticker} is '{fin['name']}', not the vendor - financials ignored", src)
+                    fin = None
+        except Exception as e:  # noqa: BLE001
+            rep.add("financials", "eodhd", CANT_VERIFY, None, f"EODHD lookup failed: {e}", "EODHD")
+    else:
+        rep.add("financials", "eodhd", CANT_VERIFY, None, "EODHD not configured (set EODHD_API_KEY)", "EODHD")
+
+    years = [y for y in (fin or {}).get("years", []) if y.get("revenue")]
+    if years:
+        actual = years[0]["revenue"]
+        avg3 = sum(y["revenue"] for y in years[:3]) / len(years[:3])
+        passage = "; ".join(f"FY{y['date'][:4]} revenue {_cr(y['revenue'])}, net income {_cr(y['net_income'] or 0)}"
+                            for y in years[:3])
+        if claimed_latest:
+            r = claimed_latest / actual
+            if r <= 1.25:
+                rep.add("financials", "turnover_claim", CONFIRMED, 1.0,
+                        f"Claimed turnover {_cr(claimed_latest)} vs audited {_cr(actual)} (FY{years[0]['date'][:4]})",
+                        src, passage, years[0]["date"])
+            else:
+                rep.add("financials", "turnover_claim", RED_FLAG if r > 2 else CONTRADICTED, 0.1 if r > 2 else 0.4,
+                        f"Turnover INFLATED: claimed {_cr(claimed_latest)} vs audited {_cr(actual)} ({r:.1f}x)",
+                        src, passage, years[0]["date"])
+        else:
+            rep.add("financials", "turnover", CONFIRMED, 1.0, f"Audited revenue {_cr(actual)} (FY{years[0]['date'][:4]})",
+                    src, passage, years[0]["date"])
+        ni = [y.get("net_income") for y in years[:2] if y.get("net_income") is not None]
+        if ni:
+            if all(x < 0 for x in ni) and len(ni) == 2:
+                rep.add("financials", "profitability", RED_FLAG, 0.3, "Loss-making in each of the last 2 years", src, passage)
+            elif ni[0] < 0:
+                rep.add("financials", "profitability", CONTRADICTED, 0.5, f"Net loss {_cr(ni[0])} in latest year", src)
+            else:
+                rep.add("financials", "profitability", CONFIRMED, 1.0, f"Profitable: net income {_cr(ni[0])}", src)
+        eq = years[0].get("equity")
+        if eq is not None:
+            rep.add("financials", "net_worth", CONFIRMED if eq > 0 else RED_FLAG, 1.0 if eq > 0 else 0.0,
+                    f"Net worth {_cr(eq)}" + ("" if eq > 0 else " - NEGATIVE (fails GeM financial standing)"),
+                    src, knockout=eq <= 0)
+        if min_avg:
+            ok = avg3 >= min_avg
+            rep.add("financials", "tender_turnover_rule", CONFIRMED if ok else RED_FLAG, 1.0 if ok else 0.0,
+                    f"Avg turnover (last {len(years[:3])} FY) {_cr(avg3)} vs tender minimum {_cr(min_avg)}"
+                    + ("" if ok else " - NOT ELIGIBLE"), src, passage, knockout=not ok)
+        tv = _num(tender.get("value_inr"))
+        if tv and tv > 0.5 * actual:
+            rep.add("financials", "tender_vs_turnover", CONTRADICTED, 0.4,
+                    f"Tender {_cr(tv)} is {tv/actual:.0%} of annual revenue - delivery risk", src)
+        return
+
+    # ---- Unlisted (or no EODHD): weak checks only
+    if band and claimed_latest:
+        lo, hi = band[0] * USD_INR, band[1] * USD_INR
+        if claimed_latest > 3 * hi:
+            rep.add("financials", "turnover_estimate", CONTRADICTED, 0.3,
+                    f"Claimed {_cr(claimed_latest)} is far above Crustdata's estimate ({_cr(lo)}–{_cr(hi)})",
+                    "crustdata:/company/enrich revenue (estimate)")
+        else:
+            rep.add("financials", "turnover_estimate", CONFIRMED, 0.7,
+                    f"Claimed {_cr(claimed_latest)} not inconsistent with Crustdata estimate ({_cr(lo)}–{_cr(hi)}; wide model band)",
+                    "crustdata:/company/enrich revenue (estimate)")
+    if min_avg and claimed_avg:
+        ok = claimed_avg >= min_avg
+        rep.add("financials", "tender_turnover_rule", CANT_VERIFY if ok else CONTRADICTED, None if ok else 0.2,
+                f"Declared avg turnover {_cr(claimed_avg)} vs tender minimum {_cr(min_avg)}"
+                + (" - unverified (no audited source; ask for CA certificate)" if ok else " - below minimum"),
+                "bid declaration")
+    nw = _num(bid.get("net_worth_inr"))
+    if nw is not None and nw <= 0:
+        rep.add("financials", "net_worth", RED_FLAG, 0.0, f"Declared net worth {_cr(nw)} - negative", "bid declaration",
+                knockout=True)
+    if not any(f.category == "financials" and f.score is not None for f in rep.findings):
+        rep.add("financials", "audited_financials", CANT_VERIFY, None,
+                "No audited financials found (unlisted or not configured) - request CA-certified turnover statement")
+
+
+# --------------------------------------------------------------------------- registrations (identity)
+CIN_RE = re.compile(r"^([LU])(\d{5})([A-Z]{2})(\d{4})(PLC|PTC|OPC|GOI|SGC|FLC|FTC|NPL|ULL|ULT|GAP|GAT)(\d{6})$")
+LLPIN_RE = re.compile(r"^[A-Z]{3}-\d{4}$")
+UDYAM_RE = re.compile(r"^UDYAM-[A-Z]{2}-\d{2}-\d{7}$")
+CIN_STATE = {"UP": "Uttar Pradesh", "MH": "Maharashtra", "KA": "Karnataka", "DL": "Delhi", "TN": "Tamil Nadu",
+             "TG": "Telangana", "TS": "Telangana", "GJ": "Gujarat", "HR": "Haryana", "WB": "West Bengal",
+             "RJ": "Rajasthan", "MP": "Madhya Pradesh", "KL": "Kerala", "AP": "Andhra Pradesh", "PB": "Punjab",
+             "OR": "Odisha", "BR": "Bihar", "CH": "Chandigarh", "GA": "Goa", "JH": "Jharkhand", "CT": "Chhattisgarh",
+             "UR": "Uttarakhand", "HP": "Himachal Pradesh", "AS": "Assam", "JK": "Jammu and Kashmir"}
+
+
+def check_registrations(bid: dict, rep: Report, enriched: dict | None):
+    cin = (bid.get("cin") or "").strip().upper()
+    if cin:
+        if LLPIN_RE.match(cin):
+            rep.add("identity", "cin_format", CONFIRMED, 1.0, f"LLPIN {cin} format valid", "MCA LLPIN format")
+        else:
+            m = CIN_RE.match(cin)
+            if not m:
+                rep.add("identity", "cin_format", RED_FLAG, 0.0, f"{cin} is not a valid CIN", "MCA CIN format", knockout=True)
+            else:
+                listed, _, st, yr, kind, _ = m.groups()
+                rep.add("identity", "cin_format", CONFIRMED, 1.0,
+                        f"CIN valid: {'listed' if listed == 'L' else 'unlisted'} {kind} company, incorporated {yr} in {CIN_STATE.get(st, st)}",
+                        "MCA CIN format")
+                cy = _num(bid.get("claimed_year_founded")) or _num(((enriched or {}).get("basic_info") or {}).get("year_founded"))
+                if cy and abs(int(yr) - cy) > 1:
+                    rep.add("identity", "cin_year", CONTRADICTED, 0.3,
+                            f"CIN says incorporated {yr}; founding year given/observed is {cy:.0f}", "MCA CIN format")
+                mkts = ((enriched or {}).get("basic_info") or {}).get("markets") or []
+                if listed == "U" and any(x in ("NSE", "BSE") for x in mkts):
+                    rep.add("identity", "cin_listing", CONTRADICTED, 0.3, "CIN says unlisted but the firm trades on NSE/BSE",
+                            "MCA CIN format + crustdata basic_info.markets")
+                g = (bid.get("gstin") or "").upper()
+                if len(g) == 15 and CIN_STATE.get(st) and GST_STATES.get(g[:2]) and CIN_STATE[st] != GST_STATES[g[:2]]:
+                    rep.add("identity", "cin_gst_state", CANT_VERIFY, 0.8,
+                            f"Registered office state ({CIN_STATE[st]}) differs from GSTIN state ({GST_STATES[g[:2]]}) - "
+                            "normal if this GSTIN is a branch registration", "CIN vs GSTIN")
+    udyam = (bid.get("udyam") or "").strip().upper()
+    if udyam:
+        ok = bool(UDYAM_RE.match(udyam))
+        rep.add("identity", "udyam_format", CONFIRMED if ok else RED_FLAG, 1.0 if ok else 0.1,
+                f"Udyam number {udyam} {'format valid' if ok else 'is malformed (MSE preference claim doubtful)'}",
+                "Udyam registration format")
+
+
+def check_experience(bid: dict, rep: Report, enriched: dict | None):
+    """Tender's minimum years-in-business rule, using the observed founding year (else declared)."""
+    need = _num((bid.get("tender") or {}).get("min_experience_years"))
+    yr = _num(((enriched or {}).get("basic_info") or {}).get("year_founded"))
+    src = "crustdata:/company/enrich basic_info.year_founded"
+    if not yr:
+        yr, src = _num(bid.get("claimed_year_founded")), "bid declaration (unverified)"
+    if need and yr:
+        have = dt.date.today().year - yr
+        ok = have >= need
+        rep.add("capacity", "tender_experience_rule", CONFIRMED if ok else RED_FLAG, 1.0 if ok else 0.0,
+                f"{have:.0f} years in business vs tender minimum {need:.0f}" + ("" if ok else " - NOT ELIGIBLE"),
+                src, knockout=not ok and "crustdata" in src)
+
+
+# --------------------------------------------------------------------------- declared cases
+CASE_SEVERITY = [
+    (re.compile(r"criminal|fraud|cheating|420|fir|cbi|enforcement|pmla|forgery", re.I), "criminal/fraud", 0.0, True),
+    (re.compile(r"debar|blacklist|banned", re.I), "debarment", 0.0, True),
+    (re.compile(r"insolven|nclt|ibc|cirp|liquidat|winding", re.I), "insolvency", 0.2, False),
+    (re.compile(r"tax|gst|income tax|show cause|penalty", re.I), "regulatory", 0.5, False),
+    (re.compile(r".", re.I), "civil/other", 0.7, False),
+]
+
+
+def score_declared_cases(bid: dict, rep: Report, vendor: str):
+    """Cases the reviewer already found (form). Active serious matters weigh like agent findings."""
+    for case in bid.get("known_cases") or []:
+        party = (case.get("party") or vendor).strip()
+        cat = "firm_legal" if (not case.get("party") or name_sim(vendor, party) >= 85) else "people_legal"
+        text = " ".join(str(case.get(k) or "") for k in ("nature", "court", "case_no"))
+        active = (case.get("status") or "pending").lower() not in ("disposed", "closed", "dismissed", "acquitted", "withdrawn")
+        for rx, sev, s, ko in CASE_SEVERITY:
+            if rx.search(text):
+                break
+        rep.add(cat, f"declared_case:{party}", RED_FLAG if active and s < 0.7 else CONTRADICTED if active else CONFIRMED,
+                s if active else 0.9,
+                f"{'ACTIVE' if active else 'Closed'} {sev} case vs {party}: {case.get('case_no') or ''} {case.get('court') or ''}".strip(),
+                "entered by reviewer", case.get("nature") or "", knockout=ko and active)
 
 
 # --------------------------------------------------------------------------- 4/6. legal
@@ -512,7 +768,7 @@ def legal_scan(c: Crust, subject: str, context: str, category: str, rep: Report,
         # Knockouts need a strong signal: a court record or 2+ independent hits.
         strong = "indiankanoon" in url or "ecourts" in url or len(hits) >= 2
         rep.add(category, f"{label}_{sev.replace(' ', '_').replace('/', '_')}", RED_FLAG, s,
-                f"{sev.upper()} record naming {subject}", url, snip, date, knockout=ko and strong)
+                f"FOUND BY AGENT: {sev.upper()} record naming {subject}", url, snip, date, knockout=ko and strong)
 
 
 def check_firm_legal(c: Crust, bid: dict, rep: Report):
@@ -643,13 +899,16 @@ def score(rep: Report) -> dict:
 ASK = [
     ("gstin", "GSTIN (15 chars, from the seller's GeM profile)"),
     ("pan", "PAN of the firm"),
+    ("cin", "CIN / LLPIN (blank if proprietorship/partnership)"),
+    ("udyam", "Udyam registration no. (only if claiming MSE preference)"),
     ("state", "State of registration (e.g. Karnataka)"),
-    ("entity_type", "Entity type (private limited / llp / partnership / proprietorship)"),
-    ("gst_status", "GST status from services.gst.gov.in (active/cancelled/suspended) - blank to auto-search"),
-    ("gstr3b_filed_last_12", "GSTR-3B returns filed in last 12 months (0-12) - blank if unknown"),
-    ("gst_registration_date", "GST registration date YYYY-MM-DD - blank if unknown"),
-    ("claimed_turnover_inr", "Claimed annual turnover in INR - blank if unknown"),
-    ("declared_pending_cases", "Pending cases the vendor declared in the bid - blank if unknown"),
+    ("entity_type", "Entity type (private limited / public limited / llp / partnership / proprietorship)"),
+    ("stock_ticker", "Stock ticker if listed, e.g. KSOLVES.NSE (blank = auto-detect)"),
+    ("claimed_turnover_inr", "Claimed turnover, latest FY, in INR"),
+    ("net_worth_inr", "Declared net worth in INR"),
+    ("gst_status", "GST status if already checked (active/cancelled/suspended) - blank = check via API"),
+    ("gstr3b_filed_last_12", "GSTR-3B returns filed in last 12 months (0-12) - blank = check via API"),
+    ("gst_registration_date", "GST registration date YYYY-MM-DD - blank = check via API"),
 ]
 
 
@@ -667,6 +926,28 @@ def intake(bid: dict, interactive: bool) -> dict:
             v = input(f"  {q}: ").strip()
             if v:
                 bid[k] = v
+        if not bid.get("turnover_last_3fy_inr"):
+            v = input("  Turnover of last 3 FYs in INR, latest first, comma-separated (blank to skip): ").strip()
+            if v:
+                bid["turnover_last_3fy_inr"] = [x.strip() for x in v.split(",") if x.strip()]
+        t = bid.setdefault("tender", {})
+        for k, q in (("value_inr", "Tender / bid value in INR"),
+                     ("min_avg_turnover_inr", "Tender's minimum average annual turnover (INR)"),
+                     ("min_experience_years", "Tender's minimum years of experience")):
+            if t.get(k) in (None, ""):
+                v = input(f"  {q} (blank to skip): ").strip()
+                if v:
+                    t[k] = v
+        if "known_cases" not in bid:
+            print("  Cases you already found (party | case no | court | nature | status) - blank line to finish:")
+            cases = []
+            while True:
+                line = input("    > ").strip()
+                if not line:
+                    break
+                parts = [x.strip() for x in line.split("|")] + [""] * 5
+                cases.append(dict(zip(("party", "case_no", "court", "nature", "status"), parts[:5])))
+            bid["known_cases"] = cases
         if not bid.get("key_personnel"):
             print("  Key personnel (name, title) - blank line to finish:")
             people = []
@@ -687,7 +968,11 @@ def run(bid: dict, client: Crust) -> tuple[Report, dict]:
     try:
         company = check_identity(client, bid, rep)
         enriched = check_capacity(client, bid, rep, company)
+        check_registrations(bid, rep, enriched)
+        check_experience(bid, rep, enriched)
         check_gst(client, bid, rep)
+        check_financials(client, bid, rep, company or enriched)
+        score_declared_cases(bid, rep, ((company or {}).get("basic_info") or {}).get("name") or bid["vendor_name"])
         check_firm_legal(client, bid, rep)
         check_people(client, bid, rep, company, enriched)
     except BudgetExceeded as e:

@@ -9,15 +9,40 @@ outsourced to consultants. This agent checks an IT vendor's bid claims **before 
 
 > It catches inflated, lookalike and body-shop bids, the kind CAG later reports as unfruitful expenditure.
 
+## Using it
+
+**Web form (recommended):** `pip install -r requirements.txt && streamlit run app.py`
+
+The form asks for what a GeM seller profile and bid contain:
+- **Seller:** legal name, website, entity type, GSTIN, PAN, CIN/LLPIN, Udyam number, state, founding year, stock ticker
+- **Claims:** headcount, turnover for the last 3 financial years, net worth
+- **Tender:** bid number, value, minimum average turnover, minimum years of experience
+- **Key personnel**
+- **GST details you already checked:** optional, since the GST in Cloud API fills these
+- **Cases you already found**
+
+The agent scores the cases you list **and** searches court records and news itself. Anything you missed is marked `FOUND BY AGENT`. Tick **Offline demo** in the sidebar to run on the recorded real Ksolves data with no keys.
+
+**API keys:** set them in the sidebar or as environment variables.
+
+| Variable | Used for |
+|---|---|
+| `CRUSTDATA_API_KEY` | Company, people, jobs, web/court search |
+| `GSTINCLOUD_API_KEY`, `GSTINCLOUD_URL` (template with `{gstin}`), `GSTINCLOUD_AUTH` (`header:Name` or `query:param`) | Live GSTIN status, legal name, constitution, registration date, GSTR-3B filing history |
+| `EODHD_API_KEY` | Audited revenue, net income and net worth for listed firms. The ticker is found automatically from Crustdata's stock symbol or EODHD search |
+
+If a key is missing, that category is marked "can't verify" and scored neutral. Nothing crashes.
+
 ## What it checks
 
 | # | Category (weight) | Checks | Data |
 |---|---|---|---|
-| 1 | Identity (15) | Domain belongs to the named firm; **lookalike domain** detection | Crustdata `/company/identify` |
-| 2 | Capacity (20) | Claimed vs observed headcount (50% slack), founding year, **shell signals** (₹ tender or turnover per employee), open hiring | `/company/enrich`, `/job/search` |
-| 3 | GST (20) | GSTIN format + **checksum**, embedded PAN = declared PAN, state code = declared state, PAN entity type = declared entity, **status** (active / cancelled / suspended), GSTR-3B filing regularity, registration age | GSTIN structure, web lookup, GST portal values |
-| 4 | Firm legal (20) | Pending cases, **insolvency (NCLT/IBC)**, debarment/blacklisting, fraud/FIR/ED/CBI, CAG and regulatory hits, declared cases | `/web/search/live` on indiankanoon.org + news |
-| 5 | Key people (15) | Each named person **currently** works at the vendor (vs left / namesake / not found) | `/person/search` |
+| 1 | Identity (15) | Domain belongs to the named firm; **lookalike domain** detection; CIN format, incorporation year and listed status vs claims; Udyam format | Crustdata `/company/identify`, MCA CIN structure |
+| 2 | Capacity (15) | Claimed vs observed headcount (50% slack), founding year, **shell signals** (₹ tender or turnover per employee), open hiring | `/company/enrich`, `/job/search` |
+| 3 | GST (20) | GSTIN format + **checksum**, embedded PAN = declared PAN, state code = declared state, PAN entity type = declared entity; **live status** (active / cancelled / suspended, with cancellation date), **legal name on the GSTIN = vendor** (else someone else's GSTIN → knockout), constitution, **GSTR-3B filed in last 12 months**, registration age | GSTIN structure, **GST in Cloud API**, declared values as fallback |
+| 3b | Financials (15) | Claimed turnover vs **audited revenue** (>2× = red flag), profit/loss trend, **net worth** (negative = knockout), **tender rule: avg turnover of last 3 FY ≥ required minimum** (fail = knockout), tender value vs revenue; unlisted firms: Crustdata revenue estimate (weak) + declared figures | **EODHD fundamentals**, Crustdata `revenue` |
+| 4 | Firm legal (15) | **Cases you entered** (active criminal/fraud/debarment = knockout) plus the agent's own search for pending cases, **insolvency (NCLT/IBC)**, debarment/blacklisting, fraud/FIR/ED/CBI, CAG and regulatory hits, reported as `FOUND BY AGENT` | `/web/search/live` on indiankanoon.org + news |
+| 5 | Key people (10) | Each named person **currently** works at the vendor (vs left / namesake / not found) | `/person/search` |
 | 6 | Key people legal (10) | Cases, fraud, director disqualification naming each person *together with* the firm | `/web/search/live` |
 
 Every finding records `category, check, status (confirmed | contradicted | cant_verify | red_flag),
@@ -28,7 +53,7 @@ score, detail, source, passage, date, knockout`.
 ```
 s_c       = mean(finding scores in category c), capped at its worst red flag   (s_c ∈ [0,1])
 s_c       = 0.5 if category c has no evidence                                   (neutral prior)
-Score     = 100 × Σ w_c·s_c / Σ w_c                                             (Σ w_c = 100)
+Score     = 100 × Σ w_c·s_c / Σ w_c                                             (Σ w_c = 100: identity 15, capacity 15, gst 20, financials 15, firm_legal 15, people 10, people_legal 10)
 Coverage  = Σ w_c (categories with evidence) / Σ w_c
 ```
 
@@ -93,7 +118,8 @@ Safeguards:
 
 ## Known limits
 
-- **GST status and filings:** there's no free official API. The GST portal search has a CAPTCHA. The tool uses public web pages and values the reviewer enters from `services.gst.gov.in`. A GSP API (Masters India, ClearTax, Karza, etc.) can be plugged into `check_gst`.
+- **GST in Cloud:** responses are normalised from GSTN's standard field names (`sts`, `lgnm`, `tradeNam`, `rgdt`, `cxdt`, `ctb`, filing list). The exact endpoint, auth and response format must be confirmed against the provider's docs when the key is added. Without a key, the tool falls back to public web pages and values the reviewer enters.
+- **Financials:** EODHD only covers listed companies. For unlisted firms, only Crustdata's revenue band (very wide: Ksolves shows $100M–$500M) and declared figures are available, so the tool asks for a CA-certified turnover statement.
 - **Court cases:** eCourts/NJDG has no open API. The tool searches Indian Kanoon and news through Crustdata web search, so unindexed district-court matters can be missed. The "no cases" result is labelled as such.
 - **Company data:** MCA financials and director DINs aren't in Crustdata. Director disqualification is detected only through public mentions.
 - **Response formats:** checked against the live API (identify, enrich, person search, job search, web search). The script calls the REST API directly with the same request bodies the MCP connector uses.

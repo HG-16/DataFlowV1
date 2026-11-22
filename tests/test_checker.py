@@ -185,3 +185,134 @@ def test_real_lookalike_domain_caught_despite_fuzzy_identify():
     assert checks["lookalike_domain"].knockout
     assert checks["headcount"].status == g.CONTRADICTED and checks["founded"].status == g.CONTRADICTED
     assert checks["person:Arjun Malhotra"].status == g.CANT_VERIFY      # 4 namesakes, none at Ksolves
+
+
+# ---- GST in Cloud / EODHD / registrations / declared cases
+import sqlite3  # noqa: E402
+
+import providers as pv  # noqa: E402
+
+GSTIN = "29AABCN1234F1ZS"
+
+
+def gstn_record(status="Active", lgnm="NIMBUS CLOUDWORKS PRIVATE LIMITED", months=12, trade="NIMBUS CLOUDWORKS"):
+    """Shape of the GSTN public taxpayer-search response that GST API resellers pass through."""
+    import datetime as _dt
+    today = _dt.date.today()
+    filing = []
+    for i in range(1, months + 1):
+        m = (today.month - i - 1) % 12 + 1
+        y = today.year + ((today.month - i - 1) // 12)
+        filing.append({"rtntype": "GSTR3B", "ret_prd": f"{m:02d}{y}", "dof": "20/01/2026", "status": "Filed"})
+    return {"data": {"gstin": GSTIN, "sts": status, "lgnm": lgnm, "tradeNam": trade,
+                     "rgdt": "01/07/2017", "ctb": "Private Limited Company", "stj": "State - Karnataka",
+                     "pradr": {"addr": {"bno": "12", "st": "MG Road", "loc": "Bengaluru", "stcd": "Karnataka", "pncd": "560001"}},
+                     **({"cxdt": "15/03/2026"} if status != "Active" else {})},
+            "filing": filing}
+
+
+def eod(rev=(450e7, 400e7, 350e7), ni=(40e7, 35e7), equity=200e7):
+    years = ["2026-03-31", "2025-03-31", "2024-03-31"]
+    inc = {d: {"totalRevenue": r, "netIncome": (ni[i] if i < len(ni) else 10e7)} for i, (d, r) in enumerate(zip(years, rev))}
+    bal = {d: {"totalStockholderEquity": equity} for d in years}
+    return {"General": {"Name": "Nimbus Cloudworks Ltd", "ISIN": "INE000X01010", "Exchange": "NSE", "CurrencyCode": "INR"},
+            "Highlights": {"RevenueTTM": rev[0]},
+            "Financials": {"Income_Statement": {"yearly": inc}, "Balance_Sheet": {"yearly": bal}}}
+
+
+class FakeExt(Fake):
+    """Fake Crustdata + real providers.Http in offline mode preloaded with GST / EODHD responses."""
+    offline = True
+
+    def __init__(self, gst=None, fundamentals=None, **kw):
+        super().__init__(**kw)
+        self.ext = pv.Http(sqlite3.connect(":memory:"), offline=True)
+        calls = []
+        if gst is not None:
+            calls.append({"url": f"https://gstincloud/{GSTIN}", "params": None, "response": gst})
+        if fundamentals is not None:
+            calls.append({"url": "https://eodhd.com/api/search/Nimbus Cloudworks", "params": {"fmt": "json"},
+                          "response": [{"Code": "NIMBUS", "Exchange": "NSE", "Name": "Nimbus Cloudworks Ltd"}]})
+            calls.append({"url": "https://eodhd.com/api/fundamentals/NIMBUS.NSE", "params": {"fmt": "json"},
+                          "response": fundamentals})
+        self.ext.preload(calls)
+
+
+def find(rep, check):
+    return next(f for f in rep.findings if f.check == check)
+
+
+def test_gst_api_active_and_filing_counted():
+    rep, s = g.run(load("bid_honest.json") | {"gstr3b_filed_last_12": None}, FakeExt(gst=gstn_record()))
+    assert find(rep, "gst_status").status == g.CONFIRMED and find(rep, "gst_status").source.startswith("GST in Cloud")
+    assert find(rep, "gst_legal_name").status == g.CONFIRMED
+    assert "12/12" in find(rep, "filing_regularity").detail
+
+
+def test_gst_api_cancelled_is_knockout_with_date():
+    rep, s = g.run(load("bid_honest.json"), FakeExt(gst=gstn_record(status="Cancelled")))
+    f = find(rep, "gst_status")
+    assert f.knockout and "15/03/2026" in f.detail and s["verdict"] == "REJECT"
+
+
+def test_gstin_registered_to_someone_else_is_knockout():
+    rep, s = g.run(load("bid_honest.json"), FakeExt(gst=gstn_record(lgnm="SHREE BALAJI TRADERS", trade="BALAJI ENTERPRISES")))
+    assert find(rep, "gst_legal_name").knockout and s["verdict"] == "REJECT"
+
+
+def test_irregular_filer_scored_down():
+    rep, _ = g.run(load("bid_honest.json") | {"gstr3b_filed_last_12": None}, FakeExt(gst=gstn_record(months=5)))
+    f = find(rep, "filing_regularity")
+    assert f.status == g.CONTRADICTED and abs(f.score - 5 / 12) < 1e-6
+
+
+def test_eodhd_turnover_confirmed_and_tender_rule_passes():
+    bid = load("bid_honest.json") | {"claimed_turnover_inr": 45e8}
+    bid["tender"] = bid["tender"] | {"min_avg_turnover_inr": 30e8}
+    rep, s = g.run(bid, FakeExt(gst=gstn_record(), fundamentals=eod()))
+    assert find(rep, "turnover_claim").status == g.CONFIRMED
+    assert find(rep, "tender_turnover_rule").status == g.CONFIRMED
+    assert s["verdict"] == "APPROVE"
+
+
+def test_eodhd_inflated_turnover_and_failed_eligibility():
+    bid = load("bid_honest.json") | {"claimed_turnover_inr": 200e8}            # claims 4.4x the audited figure
+    bid["tender"] = bid["tender"] | {"min_avg_turnover_inr": 100e8}
+    rep, s = g.run(bid, FakeExt(gst=gstn_record(), fundamentals=eod()))
+    assert find(rep, "turnover_claim").status == g.RED_FLAG
+    assert find(rep, "tender_turnover_rule").knockout and s["verdict"] == "REJECT"
+
+
+def test_negative_net_worth_is_knockout():
+    rep, s = g.run(load("bid_honest.json"), FakeExt(gst=gstn_record(), fundamentals=eod(ni=(-5e7, -8e7), equity=-3e7)))
+    assert find(rep, "net_worth").knockout and find(rep, "profitability").status == g.RED_FLAG
+
+
+def test_cin_checks():
+    bid = load("bid_honest.json") | {"cin": "U72200KA2016PTC123456"}
+    rep, _ = g.run(bid, FakeExt(gst=gstn_record()))
+    assert find(rep, "cin_format").status == g.CONFIRMED
+    rep, _ = g.run(load("bid_honest.json") | {"cin": "U72200KA2009PTC123456"}, FakeExt(gst=gstn_record()))
+    assert find(rep, "cin_year").status == g.CONTRADICTED       # CIN year 2009 vs founded 2016
+    rep, _ = g.run(load("bid_honest.json") | {"cin": "X123"}, FakeExt(gst=gstn_record()))
+    assert find(rep, "cin_format").knockout
+
+
+def test_declared_cases_scored_and_agent_still_searches():
+    bid = load("bid_honest.json") | {"known_cases": [
+        {"party": "Nimbus Cloudworks Private Limited", "case_no": "ARB/12/2025", "court": "Delhi HC",
+         "nature": "arbitration over payment", "status": "pending"},
+        {"party": "Vikram Sethi", "case_no": "CC 55/2024", "court": "CMM Delhi", "nature": "cheating u/s 420", "status": "pending"}]}
+    web = {'"Asha Raman"': [{"url": "https://indiankanoon.org/doc/9/", "title": "State vs Asha Raman",
+                             "snippet": "Asha Raman of Nimbus Cloudworks accused of forgery and cheating"}]}
+    rep, s = g.run(bid, FakeExt(gst=gstn_record(), web=web))
+    assert find(rep, "declared_case:Nimbus Cloudworks Private Limited").category == "firm_legal"
+    assert find(rep, "declared_case:Vikram Sethi").knockout                     # active criminal case vs key person
+    agent = [f for f in rep.findings if f.detail.startswith("FOUND BY AGENT") and "Asha Raman" in f.detail]
+    assert agent and agent[0].category == "people_legal"                      # case the reviewer missed
+    assert s["verdict"] == "REJECT"
+
+
+def test_providers_not_configured_reported_not_crashing():
+    rep, _ = g.run(load("bid_honest.json"), Fake(gst_status_text="Active"))
+    assert find(rep, "gst_api").status == g.CANT_VERIFY and find(rep, "eodhd").status == g.CANT_VERIFY

@@ -1544,6 +1544,63 @@
      }
     ]
    }
+  },
+  {
+   "path": "/company/enrich",
+   "body": {
+    "crustdata_company_ids": [
+     1050058
+    ],
+    "fields": [
+     "revenue"
+    ]
+   },
+   "response": [
+    {
+     "matched_on": "1050058",
+     "match_type": "crustdata_company_id",
+     "matches": [
+      {
+       "confidence_score": 1.0,
+       "company_data": {
+        "crustdata_company_id": 1050058,
+        "basic_info": {
+         "name": "Ksolves India Limited",
+         "crustdata_company_id": 1050058,
+         "primary_domain": "ksolves.com",
+         "status": "active",
+         "year_founded": 2012,
+         "markets": [
+          "NSE"
+         ]
+        },
+        "revenue": {
+         "estimated": {
+          "lower_bound_usd": 100000000,
+          "upper_bound_usd": 500000000,
+          "timeseries": [
+           {
+            "date": "2026-11-08",
+            "revenue_lower_bound_usd": 100000000,
+            "revenue_upper_bound_usd": 500000000
+           }
+          ]
+         },
+         "public_markets": {
+          "ipo_date": "2020-07-06",
+          "stock_symbols": [
+           "KSOLVES"
+          ],
+          "fiscal_year_end": null
+         },
+         "acquisition_status": null
+        }
+       }
+      }
+     ]
+    }
+   ]
   }
- ]
+ ],
+ "http_calls": []
 }

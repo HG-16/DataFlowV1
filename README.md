@@ -43,6 +43,28 @@ On top of `gem_checker.py`'s checks, the dashboard adds cross-checks from its ow
 - **GSTIN reused** by differently named bidders
 - **Shared PAN**: the same PAN behind differently named bidders. If they bid on the same tender, it's a knockout (cover bidding)
 
+## Deploy
+
+Settings (environment variables):
+
+| Variable | Purpose |
+|---|---|
+| `PORT` | Set by most hosts. When present the server listens on `0.0.0.0` |
+| `DASHBOARD_PASSWORD` | **Required when public.** Turns on a browser login (any username unless `DASHBOARD_USER` is set) |
+| `DASHBOARD_USER` | Optional fixed username |
+| `DASHBOARD_DB` | Path of the SQLite file. Point it at a persistent disk, or data is lost on restart |
+| `CRUSTDATA_API_KEY`, `GSP_API_URL`, `GSP_API_KEY` | Optional data sources (see above) |
+
+**Render.com** (or Railway, similar): New → Web Service → connect the GitHub repo.
+Build command `pip install -r requirements.txt`, start command `python dashboard/server.py`.
+Add `DASHBOARD_PASSWORD`. Attach a persistent disk at `/data` and set `DASHBOARD_DB=/data/dashboard.db`;
+without a disk, uploads and checks reset whenever the service restarts.
+
+**Own server / government VM**: `git clone` the repo, `pip install -r requirements.txt`, then run
+`DASHBOARD_PASSWORD=... DASHBOARD_HOST=0.0.0.0 python dashboard/server.py` under a process manager
+(systemd, or NSSM on Windows) behind nginx/IIS with HTTPS. Basic-auth passwords travel in every request,
+so serve it over HTTPS only.
+
 ## API (for scripts)
 
 ```

@@ -7,7 +7,9 @@ Env:   CRUSTDATA_API_KEY   full live checks + web GSTIN search
 """
 from __future__ import annotations
 
+import base64
 import csv
+import hmac
 import io
 import json
 import os
@@ -25,7 +27,9 @@ sys.path.insert(0, str(HERE))
 import engine  # noqa: E402
 import store  # noqa: E402
 
-DB = store.connect()
+DB = store.connect(os.environ.get("DASHBOARD_DB") or store.DB_PATH)
+PASSWORD = os.environ.get("DASHBOARD_PASSWORD", "")
+USER = os.environ.get("DASHBOARD_USER", "")
 LOCK = threading.Lock()   # one writer at a time; sqlite connection is shared
 
 TEMPLATES = {
@@ -313,7 +317,25 @@ class Handler(BaseHTTPRequestHandler):
                     return self._send(200, {"deleted": int(m[1])})
         return self._send(404, {"error": f"no route {method} {p}"})
 
+    def _authorised(self) -> bool:
+        if not PASSWORD:
+            return True
+        h = self.headers.get("authorization") or ""
+        if h.lower().startswith("basic "):
+            try:
+                user, _, pw = base64.b64decode(h[6:]).decode("utf-8").partition(":")
+                return hmac.compare_digest(pw, PASSWORD) and (not USER or hmac.compare_digest(user, USER))
+            except (ValueError, UnicodeDecodeError):
+                return False
+        return False
+
     def _safe(self, method):
+        if not self._authorised():
+            self.send_response(401)
+            self.send_header("www-authenticate", 'Basic realm="GeM vendor dashboard", charset="UTF-8"')
+            self.send_header("content-length", "0")
+            self.end_headers()
+            return
         try:
             self._route(method)
         except KeyError as e:
@@ -335,10 +357,13 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    port = int(os.environ.get("DASHBOARD_PORT", "8765"))
-    srv = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    port = int(os.environ.get("PORT") or os.environ.get("DASHBOARD_PORT") or "8765")
+    host = os.environ.get("DASHBOARD_HOST") or ("0.0.0.0" if os.environ.get("PORT") else "127.0.0.1")
+    if host != "127.0.0.1" and not PASSWORD:
+        print("WARNING: listening publicly with no DASHBOARD_PASSWORD set - anyone with the URL has full access")
+    srv = ThreadingHTTPServer((host, port), Handler)
     src = engine.sources_status()
-    print(f"GeM vendor dashboard on http://127.0.0.1:{port}")
+    print(f"GeM vendor dashboard on http://{host}:{port}  (login {'on' if PASSWORD else 'off'})")
     print(f"  GSP API: {'on' if src['gsp_api'] else 'off (set GSP_API_URL)'}   "
           f"Crustdata: {'on' if src['crustdata'] else 'off (set CRUSTDATA_API_KEY)'}")
     srv.serve_forever()
